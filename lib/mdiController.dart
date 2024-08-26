@@ -1,43 +1,65 @@
+import 'dart:async';
 import 'dart:math';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_simple_calculator/flutter_simple_calculator.dart';
-
 import 'resizableWindow.dart';
 
 class MdiController{
 
-  MdiController(this._onUpdate);
+  MdiController(){
+    streamController.add(_windows);
+  }
 
 
-  List<ResizableWindow> _windows = List.empty(growable: true);
 
-  VoidCallback _onUpdate;
+  Size defaultScreenSize = const Size(0, 0);
+  Size screenSize = const Size(0, 0);
+
+  final StreamController<List<ResizableWindow>> streamController = StreamController<List<ResizableWindow>>.broadcast();
+
+  final List<ResizableWindow> _windows = List.empty(growable: true);
+
+  void _onUpdate(){
+    streamController.add(List.from(_windows));
+  }
+
+  onDispose(){
+    streamController.close();
+  }
 
 
   List<ResizableWindow> get windows => _windows;
 
 
-  void addWindow(){
-    addCalculatorApp();
+  void addWindow(String title,Widget child){
+    _createNewWindowedApp(title,child);
   }
 
 
   void addCalculatorApp(){
 
-    _createNewWindowedApp("Calculator",SimpleCalculator());
+    _createNewWindowedApp("Calculator",const Placeholder());
 
   }
   void _createNewWindowedApp(String title,Widget app){
 
 
-    ResizableWindow resizableWindow = ResizableWindow(title,app);
+    ResizableWindow resizableWindow = ResizableWindow(title: title,body: app,);
 
 
     //Set initial position
-    var rng = new Random();
-    resizableWindow.x =  rng.nextDouble() * 500;
-    resizableWindow.y =  rng.nextDouble() * 500;
+    var rng = Random();
+    resizableWindow.x = rng.nextDouble() * 200;
+    resizableWindow.y = rng.nextDouble() * 200;
+
+
+    resizableWindow.onWindowDraggedStart = (){
+
+      if(_windows.last!=resizableWindow){
+        _windows.remove(resizableWindow);
+        _windows.add(resizableWindow);
+        _onUpdate();
+      }
+    };
 
     //Init onWindowDragged
     resizableWindow.onWindowDragged = (dx,dy){
@@ -45,13 +67,25 @@ class MdiController{
       resizableWindow.x += dx;
       resizableWindow.y += dy;
 
+      //Limit drag on top and left screen
+
       //Put on top of stack
-      _windows.remove(resizableWindow);
-      _windows.add(resizableWindow);
-
-      _onUpdate();
 
 
+
+
+    };
+
+    resizableWindow.onWindowDraggedEnd = () {
+      final newSize = Size(
+          max(maxHorizontalPosition, defaultScreenSize.width),
+          max(maxVerticalPosition, defaultScreenSize.height)
+      );
+
+      if (newSize != screenSize) {
+        screenSize = newSize;
+        _onUpdate();
+      }
     };
 
     //Init onCloseButtonClicked
@@ -67,6 +101,26 @@ class MdiController{
     // Update Widgets after adding the new App
     _onUpdate();
 
+  }
+
+  double get maxHorizontalPosition {
+    double result = 0;
+    if (windows.isNotEmpty) {
+      result = windows
+          .map((element) => element.x + element.currentWidth)
+          .reduce((a, b) => a > b ? a : b);
+    }
+    return result;
+  }
+
+  double get maxVerticalPosition {
+    double result = 0;
+    if (windows.isNotEmpty) {
+      return windows
+          .map((element) => element.y + element.currentHeight)
+          .reduce((a, b) => a > b ? a : b);
+    }
+    return result;
   }
 
 

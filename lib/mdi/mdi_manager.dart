@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'mdiController.dart';
-import 'resizableWindow.dart';
+import 'mdi_controller.dart';
+import 'resizable_window.dart';
 
 class MdiManager extends StatefulWidget {
   final void Function(MdiController controller) onMdiControllerCreated;

@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'resizableWindow.dart';
+
+import 'resizable_window.dart';
 
 class MdiController{
 

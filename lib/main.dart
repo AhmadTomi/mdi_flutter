@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_app_mdi/mdiManager.dart';
+import 'package:flutter_app_mdi/mdi/mdi_manager.dart';
 
-import 'mdiController.dart';
+import 'mdi/mdi_controller.dart';
 
 void main() {
   runApp(const MyApp());

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import 'mdi_controller.dart';
 import 'resizable_window.dart';
@@ -15,11 +16,13 @@ class _MdiManagerState extends State<MdiManager> {
 
   late final MdiController mdiController;
 
+  final ScrollController _horizontalController = ScrollController();
+  final ScrollController _verticalController = ScrollController();
+
   @override
   void initState() {
     mdiController = MdiController();
     widget.onMdiControllerCreated(mdiController);
-
     super.initState();
   }
 
@@ -37,15 +40,28 @@ class _MdiManagerState extends State<MdiManager> {
           stream: mdiController.streamController.stream,
           builder: (context, snapshot) {
             print("Build Manager");
-            return SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
+            return Scrollbar(
+              controller: _horizontalController,
+              trackVisibility: true,
+              thumbVisibility: true,
               child: SingleChildScrollView(
-                scrollDirection: Axis.vertical,
-                child: SizedBox(
-                  width: (mdiController.maxHorizontalPosition>constraints.maxWidth)?mdiController.maxHorizontalPosition:constraints.maxWidth,
-                  height: (mdiController.maxVerticalPosition>constraints.maxHeight)?mdiController.maxVerticalPosition:constraints.maxHeight,
-                  child: Stack(
-                      children: snapshot.data??[]
+                scrollDirection: Axis.horizontal,
+                controller: _horizontalController,
+                child: Scrollbar(
+                  controller: _verticalController,
+                  trackVisibility: true,
+                  thumbVisibility: true,
+                  scrollbarOrientation: ScrollbarOrientation.left,
+                  child: SingleChildScrollView(
+                    controller: _verticalController,
+                    scrollDirection: Axis.vertical,
+                    child: SizedBox(
+                      width: mdiController.screenSize.width.clamp(constraints.maxWidth, double.infinity),
+                      height: mdiController.screenSize.height.clamp(constraints.maxHeight, double.infinity),
+                      child: Stack(
+                          children: snapshot.data??[]
+                      ),
+                    ),
                   ),
                 ),
               ),

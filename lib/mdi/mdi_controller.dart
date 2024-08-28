@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter_app_mdi/mdi/parameter_window.dart';
 
 import 'resizable_window.dart';
+
 
 class MdiController{
 
@@ -18,6 +20,8 @@ class MdiController{
   final StreamController<List<ResizableWindow>> streamController = StreamController<List<ResizableWindow>>.broadcast();
 
   final List<ResizableWindow> _windows = List.empty(growable: true);
+
+  final Map<Key, ParameterWindow> _windowParameters = {};
 
   void _onUpdate(){
     streamController.add(List.from(_windows));
@@ -43,85 +47,133 @@ class MdiController{
   }
   void _createNewWindowedApp(String title,Widget app){
 
+    ResizableWindow? resizableWindow;
 
-    ResizableWindow resizableWindow = ResizableWindow(title: title,body: app,);
+    Key key= UniqueKey();
 
+    ParameterWindow parameter = ParameterWindow(
+        id: 'id',
+        title: 'title',
+        x: Random().nextDouble() * 200,
+        y: Random().nextDouble() * 200,
 
-    //Set initial position
-    var rng = Random();
-    resizableWindow.x = rng.nextDouble() * 200;
-    resizableWindow.y = rng.nextDouble() * 200;
-
-
-    resizableWindow.onWindowDraggedStart = (){
-
-      if(_windows.last!=resizableWindow){
-        _windows.remove(resizableWindow);
-        _windows.add(resizableWindow);
-        _onUpdate();
-      }
-    };
-
-    //Init onWindowDragged
-    resizableWindow.onWindowDragged = (dx,dy){
-
-      resizableWindow.x += dx;
-      resizableWindow.y += dy;
-
-      //Limit drag on top and left screen
-
-      //Put on top of stack
+    );
 
 
+    resizableWindow = ResizableWindow(
+      key: key,
+      parameter: parameter,
+      body: Column(
+        children: [
+          Container(
+            height: 36,
+            color: Colors.lightBlueAccent,
+            child: Stack(
+              children: [
+                Positioned(
+                  left: 10,
+                  top: 0,
+                  bottom: 0,
+                  child: GestureDetector(
+                      onTap: () {
+                        if(resizableWindow!=null){
+                          _windows.remove(resizableWindow);
+                          _onUpdate();
+                        }
+                      },
+                      child: const Icon(
+                        Icons.circle,
+                        color: Colors.red,
+                      )),
+                ),
+                Positioned.fill(child: Center(child: Text("$title $key"))),
+              ],
+            ),
+          ),
+          Expanded(child: app)
+        ],
+      ),
+      onWindowDraggedStart: () {
+        if(_windows.last.key!=key && resizableWindow!=null){
+          _windows.remove(resizableWindow);
+          _windows.add(resizableWindow);
+          _onUpdate();
+        }
+      },
+      onWindowDragged: (dx,dy){
+      },
+      onWindowDraggedEnd: (x,y){
+        _windowParameters[key]?.updateParameter(
+          posX: x,
+          posY: y,
+        );
+        final maxSize = getCornerPosition();
+        final newSize = Size(
+            max(maxSize.width, defaultScreenSize.width),
+            max(maxSize.height, defaultScreenSize.height)
+        );
+        if (newSize != screenSize) {
+          screenSize = newSize;
+          _onUpdate();
+        }
+      },
+      onWindowResized: (x,y,width, height) {
+        _windowParameters[key]?.updateParameter(
+            posX:x,
+            posY:y,
+            height: height,
+            width: width
+        );
 
+        final maxSize = getCornerPosition();
+        final newSize = Size(
+            max(maxSize.width, defaultScreenSize.width),
+            max(maxSize.height, defaultScreenSize.height)
+        );
+        if (newSize != screenSize) {
+          screenSize = newSize;
+          _onUpdate();
+        }
 
-    };
+      },
+      onCloseButtonClicked: (){
+        if(resizableWindow!=null){
+          _windows.remove(resizableWindow);
+          _onUpdate();
+        }
+      },
+      windowBuilder: (context,child) {
+        return Container(
+          decoration: const BoxDecoration(
+            borderRadius: BorderRadius.all(Radius.circular(10)),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: child,
+        );
+      },
 
-    resizableWindow.onWindowDraggedEnd = () {
-      final newSize = Size(
-          max(maxHorizontalPosition, defaultScreenSize.width),
-          max(maxVerticalPosition, defaultScreenSize.height)
-      );
-
-      if (newSize != screenSize) {
-        screenSize = newSize;
-        _onUpdate();
-      }
-    };
-
-    //Init onCloseButtonClicked
-    resizableWindow.onCloseButtonClicked = (){
-      _windows.remove(resizableWindow);
-      _onUpdate();
-    };
-
+    );
 
     //Add Window to List
     _windows.add(resizableWindow);
+    _windowParameters[key] = parameter;
 
     // Update Widgets after adding the new App
     _onUpdate();
 
   }
 
-  double get maxHorizontalPosition {
-    double result = 0;
-    if (windows.isNotEmpty) {
-      result = windows
-          .map((element) => element.x + element.currentWidth)
-          .reduce((a, b) => a > b ? a : b);
-    }
-    return result;
-  }
+  bool isTopWindow(Key key) => _windows.last.key == key;
 
-  double get maxVerticalPosition {
-    double result = 0;
-    if (windows.isNotEmpty) {
-      return windows
-          .map((element) => element.y + element.currentHeight)
-          .reduce((a, b) => a > b ? a : b);
-    }
-    return result;
+  Size getCornerPosition(){
+    double x = 0;
+    double y = 0;
+
+    _windowParameters.forEach((key, value) {
+      x = max(value.cornerX,x);
+      y = max(value.cornerY,y);
+    });
+    return Size(x,y);
   }
 
 

@@ -13,14 +13,15 @@ class ResizableWindow extends StatefulWidget {
   final Function(double x,double y, double width, double height) onWindowResized;
   final Widget Function(BuildContext context,Widget child)? windowBuilder;
   final VoidCallback onCloseButtonClicked;
+  final Function(void Function() setState)? onUpdate;
 
-  const ResizableWindow({super.key, required this.parameter, required this.onWindowDragged, required this.onWindowDraggedStart, required this.onWindowDraggedEnd, required this.onCloseButtonClicked, required this.body, required this.onWindowResized, this.windowBuilder});
+  const ResizableWindow({super.key, required this.parameter, required this.onWindowDragged, required this.onWindowDraggedStart, required this.onWindowDraggedEnd, required this.onCloseButtonClicked, required this.body, required this.onWindowResized, this.windowBuilder, this.onUpdate});
 
   @override
-  State<ResizableWindow> createState() => _ResizableWindowState();
+  State<ResizableWindow> createState() => ResizableWindowState();
 }
 
-class _ResizableWindowState extends State<ResizableWindow> {
+class ResizableWindowState extends State<ResizableWindow> {
   final _borderRadius = 10.0;
 
   double x = 0;
@@ -44,6 +45,11 @@ class _ResizableWindowState extends State<ResizableWindow> {
       left: x,
       child: widget.windowBuilder?.call(context,_windowBuilder())??_windowBuilder()
     );
+  }
+
+  void rebuild() {
+    setState(() {
+    });
   }
 
 
@@ -212,7 +218,9 @@ class _ResizableWindowState extends State<ResizableWindow> {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onPanDown: (details) {
-        widget.onWindowDraggedStart();
+        setState(() {
+          widget.onWindowDraggedStart();
+        });
       },
       onPanUpdate: (tapInfo) {
         setState(() {

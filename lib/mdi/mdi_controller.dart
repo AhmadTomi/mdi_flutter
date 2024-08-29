@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_app_mdi/mdi/parameter_window.dart';
 
 import 'resizable_window.dart';
@@ -10,6 +11,7 @@ class MdiController{
 
   MdiController(){
     streamController.add(_windows);
+    HardwareKeyboard.instance.addHandler(_keyHandler);
   }
 
 
@@ -29,6 +31,7 @@ class MdiController{
 
   onDispose(){
     streamController.close();
+    HardwareKeyboard.instance.removeHandler(_keyHandler);
   }
 
 
@@ -49,7 +52,8 @@ class MdiController{
 
     ResizableWindow? resizableWindow;
 
-    Key key= UniqueKey();
+    // Key key= UniqueKey();
+    final GlobalKey<ResizableWindowState> key = GlobalKey();
 
     ParameterWindow parameter = ParameterWindow(
         id: 'id',
@@ -76,17 +80,14 @@ class MdiController{
                   bottom: 0,
                   child: GestureDetector(
                       onTap: () {
-                        if(resizableWindow!=null){
-                          _windows.remove(resizableWindow);
-                          _onUpdate();
-                        }
+                        closeWindow(key);
                       },
                       child: const Icon(
                         Icons.circle,
                         color: Colors.red,
                       )),
                 ),
-                Positioned.fill(child: Center(child: Text("$title $key"))),
+                Positioned.fill(child: Center(child: Text("$title ${key.hashCode}"))),
               ],
             ),
           ),
@@ -97,6 +98,8 @@ class MdiController{
         if(_windows.last.key!=key && resizableWindow!=null){
           _windows.remove(resizableWindow);
           _windows.add(resizableWindow);
+
+          rebuildWindow(_windows.length-2);
           _onUpdate();
         }
       },
@@ -107,7 +110,7 @@ class MdiController{
           posX: x,
           posY: y,
         );
-        final maxSize = getCornerPosition();
+        final maxSize = _getCornerPosition();
         final newSize = Size(
             max(maxSize.width, defaultScreenSize.width),
             max(maxSize.height, defaultScreenSize.height)
@@ -125,7 +128,7 @@ class MdiController{
             width: width
         );
 
-        final maxSize = getCornerPosition();
+        final maxSize = _getCornerPosition();
         final newSize = Size(
             max(maxSize.width, defaultScreenSize.width),
             max(maxSize.height, defaultScreenSize.height)
@@ -137,15 +140,13 @@ class MdiController{
 
       },
       onCloseButtonClicked: (){
-        if(resizableWindow!=null){
-          _windows.remove(resizableWindow);
-          _onUpdate();
-        }
+        closeWindow(key);
       },
       windowBuilder: (context,child) {
         return Container(
-          decoration: const BoxDecoration(
-            borderRadius: BorderRadius.all(Radius.circular(10)),
+          decoration: BoxDecoration(
+          border: Border.all(color: (key==_windows.last.key)? Colors.red : Colors.transparent,strokeAlign: BorderSide.strokeAlignOutside,width: 1.5),
+            borderRadius: const BorderRadius.all(Radius.circular(10)),
           ),
           clipBehavior: Clip.antiAlias,
           child: child,
@@ -155,8 +156,12 @@ class MdiController{
     );
 
     //Add Window to List
+
+
     _windows.add(resizableWindow);
     _windowParameters[key] = parameter;
+
+    rebuildWindow(_windows.length-2);
 
     // Update Widgets after adding the new App
     _onUpdate();
@@ -165,7 +170,7 @@ class MdiController{
 
   bool isTopWindow(Key key) => _windows.last.key == key;
 
-  Size getCornerPosition(){
+  Size _getCornerPosition(){
     double x = 0;
     double y = 0;
 
@@ -176,5 +181,54 @@ class MdiController{
     return Size(x,y);
   }
 
+  void closeWindow(Key? key){
+    if (key==null) return;
+    var window = _windows.cast<ResizableWindow?>().firstWhere((window) => window?.key == key, orElse: () => null);
+
+    if(window!=null){
+      _windows.remove(window);
+      rebuildWindow(_windows.length-1);
+      _windowParameters.remove(key);
+
+      _onUpdate();
+    }
+  }
+
+  void rebuildWindow(int index) {
+    if (index >= 0 && index < _windows.length) {
+      (_windows[index].key as GlobalKey<ResizableWindowState>?)?.currentState?.rebuild();
+    }
+  }
+
+  bool _keyHandler(KeyEvent event){
+    if(event is KeyDownEvent ){
+      if(event.logicalKey == LogicalKeyboardKey.escape){
+        closeWindow(_windows.last.key);
+      }
+      if(HardwareKeyboard.instance.isControlPressed){
+        if(event.logicalKey == LogicalKeyboardKey.arrowRight){
+          if(_windows.length>1){
+            ResizableWindow window = _windows.removeAt(0);
+            _windows.add(window);
+            _onUpdate();
+            rebuildWindow(_windows.length-2);
+            rebuildWindow(_windows.length-1);
+          }
+          return true;
+        }
+        if(event.logicalKey == LogicalKeyboardKey.arrowLeft){
+          if(_windows.length>1){
+            ResizableWindow window = _windows.removeLast();
+            _windows.insert(0, window);
+            _onUpdate();
+            rebuildWindow(0);
+            rebuildWindow(_windows.length-1);
+          }
+          return true;
+        }
+      }
+    }
+    return false;
+  }
 
 }

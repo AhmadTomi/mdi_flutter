@@ -22,7 +22,8 @@ class ResizableWindow extends StatefulWidget {
 }
 
 class ResizableWindowState extends State<ResizableWindow> {
-  final _borderRadius = 10.0;
+  final _snapRange = 30.0;
+  final _gapWidget = 2;
 
   double x = 0;
   double y = 0;
@@ -51,24 +52,39 @@ class ResizableWindowState extends State<ResizableWindow> {
     setState(() {
     });
   }
+  double _nearestMultiple(double number, double n) {
+    n+=_gapWidget;
+    double lowerMultiple = (number ~/ n) * n;
+    double higherMultiple = lowerMultiple + n;
+    return (number - lowerMultiple < higherMultiple - number) ? lowerMultiple : higherMultiple;
+  }
+
+  Size nearestXY(Size number, Size n) {
+    double nearestWidth = _nearestMultiple(number.width, n.width);
+    double nearestHeight = _nearestMultiple(number.height, n.height);
+    return Size(nearestWidth, nearestHeight);
+  }
+
+  bool isCanSnap(Size current, Size snap) {
+    bool isSnapX = false;
+    bool isSnapY = false;
+
+    if ((current.width < (snap.width + _snapRange)) &&
+        (current.width > (snap.width - _snapRange))) {
+      isSnapX = true;
+    }
+    if ((current.height < (snap.height + _snapRange)) &&
+        (current.height > (snap.height - _snapRange))) {
+      isSnapY = true;
+    }
+    return (isSnapY && isSnapX);
+  }
 
 
   Widget _windowBuilder(){
     return SizedBox(
-      // decoration: BoxDecoration(
-      //   //Here goes the same radius, u can put into a var or function
-      //   borderRadius: BorderRadius.all(Radius.circular(_borderRadius)),
-      //   boxShadow: const [
-      //     BoxShadow(
-      //       color: Color(0x54000000),
-      //       spreadRadius: 4,
-      //       blurRadius: 5,
-      //     ),
-      //   ],
-      // ),
       width: currentWidth,
       height: currentHeight,
-      // clipBehavior: Clip.antiAlias,
       child: Stack(
         children: [
           _windowBody(widget.body),
@@ -80,6 +96,7 @@ class ResizableWindowState extends State<ResizableWindow> {
                 behavior: HitTestBehavior.translucent,
                 onHorizontalDragUpdate: _onHorizontalDragRight,
                 onHorizontalDragEnd: (details) {
+                  _onHorizontalRightDragEnd(details);
                   widget.onWindowResized(x,y,currentWidth,currentHeight);
                 },
                 child: MouseRegion(
@@ -97,6 +114,7 @@ class ResizableWindowState extends State<ResizableWindow> {
               child: GestureDetector(
                 onHorizontalDragUpdate: _onHorizontalDragLeft,
                 onHorizontalDragEnd: (details) {
+                  _onHorizontalLeftDragEnd(details);
                   widget.onWindowResized(x,y,currentWidth,currentHeight);
                 },
                 child: MouseRegion(
@@ -114,6 +132,7 @@ class ResizableWindowState extends State<ResizableWindow> {
               child: GestureDetector(
                 onVerticalDragUpdate: _onHorizontalDragTop,
                 onVerticalDragEnd: (details) {
+                  _onVerticalDragTopEnd(details);
                   widget.onWindowResized(x,y,currentWidth,currentHeight);
                 },
                 child: MouseRegion(
@@ -131,6 +150,7 @@ class ResizableWindowState extends State<ResizableWindow> {
               child: GestureDetector(
                 onVerticalDragUpdate: _onHorizontalDragBottom,
                 onVerticalDragEnd: (details) {
+                  _onVerticalDragBottomEnd(details);
                   widget.onWindowResized(x,y,currentWidth,currentHeight);
                 },
                 child: MouseRegion(
@@ -232,6 +252,7 @@ class ResizableWindowState extends State<ResizableWindow> {
         widget.onWindowDragged(tapInfo.delta.dx, tapInfo.delta.dy);
       },
       onPanEnd: (details) {
+        _onWindowDragEnd();
         widget.onWindowDraggedEnd(x,y);
       },
       child: Container(
@@ -239,6 +260,60 @@ class ResizableWindowState extends State<ResizableWindow> {
         child: child
       ),
     );
+  }
+
+  void _onWindowDragEnd(){
+    final Size currentPosition = Size(x, y);
+    const Size defaultSnap = Size(ParameterWindow.defaultWidth, ParameterWindow.defaultHeight);
+    final Size nearestSnap = nearestXY(currentPosition, defaultSnap);
+    bool isSnap = isCanSnap(currentPosition, nearestSnap);
+
+    if (isSnap) {
+      setState(() {
+        x = nearestSnap.width;
+        y = nearestSnap.height;
+      });
+    }
+  }
+
+  void _onVerticalDragBottomEnd(DragEndDetails details){
+    double nearestSnap = _nearestMultiple(currentHeight, ParameterWindow.defaultHeight);
+    if(currentHeight<(nearestSnap+_snapRange)&& currentHeight>(nearestSnap-_snapRange)){
+      setState(() {
+        currentHeight = nearestSnap;
+      });
+    }
+  }
+
+  void _onVerticalDragTopEnd(DragEndDetails details){
+    double bottomPos = currentHeight + y;
+    double nearestSnap = _nearestMultiple(currentHeight, ParameterWindow.defaultHeight);
+    if(currentHeight<(nearestSnap+_snapRange)&& currentHeight>(nearestSnap-_snapRange)){
+      setState(() {
+        currentHeight = nearestSnap;
+        y = bottomPos - currentHeight;
+      });
+    }
+  }
+
+  void _onHorizontalLeftDragEnd(DragEndDetails details){
+    double rightPos = currentWidth + x;
+    double nearestSnap = _nearestMultiple(currentWidth, ParameterWindow.defaultWidth);
+    if(currentWidth<(nearestSnap+_snapRange)&& currentWidth>(nearestSnap-_snapRange)){
+      setState(() {
+        currentWidth = nearestSnap;
+        x = rightPos - currentWidth;
+      });
+    }
+  }
+
+  void _onHorizontalRightDragEnd(DragEndDetails details){
+    double nearestSnap = _nearestMultiple(currentWidth, ParameterWindow.defaultWidth);
+    if(currentWidth<(nearestSnap+_snapRange)&& currentWidth>(nearestSnap-_snapRange)){
+      setState(() {
+        currentWidth = nearestSnap;
+      });
+    }
   }
 
   void _onHorizontalDragLeft(DragUpdateDetails details) {

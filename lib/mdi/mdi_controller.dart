@@ -146,7 +146,7 @@ class MdiController{
         return Container(
           decoration: BoxDecoration(
           border: Border.all(color: (key==_windows.last.key)? Colors.red : Colors.transparent,strokeAlign: BorderSide.strokeAlignOutside,width: 1.5),
-            borderRadius: const BorderRadius.all(Radius.circular(10)),
+            borderRadius: const BorderRadius.all(Radius.circular(4)),
           ),
           clipBehavior: Clip.antiAlias,
           child: child,
@@ -203,7 +203,10 @@ class MdiController{
   bool _keyHandler(KeyEvent event){
     if(event is KeyDownEvent ){
       if(event.logicalKey == LogicalKeyboardKey.escape){
-        closeWindow(_windows.last.key);
+        if(_windows.isNotEmpty){
+          closeWindow(_windows.last.key);
+        }
+
       }
       if(HardwareKeyboard.instance.isControlPressed){
         if(event.logicalKey == LogicalKeyboardKey.arrowRight){

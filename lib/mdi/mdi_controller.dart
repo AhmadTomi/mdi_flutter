@@ -1,237 +1,359 @@
 import 'dart:async';
 import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_app_mdi/mdi/parameter_window.dart';
+import 'package:flutter_app_mdi/mdi/resizable_window_controller.dart';
 
-import 'resizable_window.dart';
+import 'mdi_tab_controller.dart';
 
+class MdiController extends ChangeNotifier{
+  final Map<String, ResizeableWindowController> _controllers = {};
+  final Map<String, ResizeableWindowController> _tabControllers = {};
 
-class MdiController{
+  List<ResizeableWindowController> get controllers => _controllers.values.toList();
+  List<ResizeableWindowController> get tabControllers => _tabControllers.values.toList();
 
-  MdiController(){
-    streamController.add(_windows);
-    HardwareKeyboard.instance.addHandler(_keyHandler);
-  }
+  Size screenSize = Size.zero;
+  Size mdiSize = Size.zero;
 
+  bool isMaximize = false;
+  bool hasFocus = false;
 
+  final ScrollController horizontalController = ScrollController();
+  final ScrollController verticalController = ScrollController();
+  final ScrollController verticalScrollBarController = ScrollController();
 
-  Size defaultScreenSize = const Size(0, 0);
-  Size screenSize = const Size(0, 0);
+  final MdiTabController tabMenuController = MdiTabController();
 
-  final StreamController<List<ResizableWindow>> streamController = StreamController<List<ResizableWindow>>.broadcast();
+  final _debouncer = _Debouncer(milliseconds: 100);
 
-  final List<ResizableWindow> _windows = List.empty(growable: true);
+  ResizeableWindowController? get frontWindow => (_controllers.isNotEmpty) ?_controllers.values.last : null;
 
-  final Map<Key, ParameterWindow> _windowParameters = {};
-
-  void _onUpdate(){
-    streamController.add(List.from(_windows));
-  }
-
-  onDispose(){
-    streamController.close();
-    HardwareKeyboard.instance.removeHandler(_keyHandler);
-  }
-
-
-  List<ResizableWindow> get windows => _windows;
-
-
-  void addWindow(String title,Widget child){
-    _createNewWindowedApp(title,child);
-  }
-
-
-  void addCalculatorApp(){
-
-    _createNewWindowedApp("Calculator",const Placeholder());
-
-  }
-  void _createNewWindowedApp(String title,Widget app){
-
-    ResizableWindow? resizableWindow;
-
-    // Key key= UniqueKey();
-    final GlobalKey<ResizableWindowState> key = GlobalKey();
-
-    ParameterWindow parameter = ParameterWindow(
-        id: 'id',
-        title: 'title',
-        x: Random().nextDouble() * 200,
-        y: Random().nextDouble() * 200,
-
-    );
-
-
-    resizableWindow = ResizableWindow(
-      key: key,
-      parameter: parameter,
-      body: Column(
-        children: [
-          Container(
-            height: 36,
-            color: Colors.lightBlueAccent,
-            child: Stack(
-              children: [
-                Positioned(
-                  left: 10,
-                  top: 0,
-                  bottom: 0,
-                  child: GestureDetector(
-                      onTap: () {
-                        closeWindow(key);
-                      },
-                      child: const Icon(
-                        Icons.circle,
-                        color: Colors.red,
-                      )),
-                ),
-                Positioned.fill(child: Center(child: Text("$title ${key.hashCode}"))),
-              ],
-            ),
-          ),
-          Expanded(child: app)
-        ],
-      ),
-      onWindowDraggedStart: () {
-        if(_windows.last.key!=key && resizableWindow!=null){
-          _windows.remove(resizableWindow);
-          _windows.add(resizableWindow);
-
-          rebuildWindow(_windows.length-2);
-          _onUpdate();
-        }
-      },
-      onWindowDragged: (dx,dy){
-      },
-      onWindowDraggedEnd: (x,y){
-        _windowParameters[key]?.updateParameter(
-          posX: x,
-          posY: y,
-        );
-        final maxSize = _getCornerPosition();
-        final newSize = Size(
-            max(maxSize.width, defaultScreenSize.width),
-            max(maxSize.height, defaultScreenSize.height)
-        );
-        if (newSize != screenSize) {
-          screenSize = newSize;
-          _onUpdate();
-        }
-      },
-      onWindowResized: (x,y,width, height) {
-        _windowParameters[key]?.updateParameter(
-            posX:x,
-            posY:y,
-            height: height,
-            width: width
-        );
-
-        final maxSize = _getCornerPosition();
-        final newSize = Size(
-            max(maxSize.width, defaultScreenSize.width),
-            max(maxSize.height, defaultScreenSize.height)
-        );
-        if (newSize != screenSize) {
-          screenSize = newSize;
-          _onUpdate();
-        }
-
-      },
-      onCloseButtonClicked: (){
-        closeWindow(key);
-      },
-      windowBuilder: (context,child) {
-        return Container(
-          decoration: BoxDecoration(
-          border: Border.all(color: (key==_windows.last.key)? Colors.red : Colors.transparent,strokeAlign: BorderSide.strokeAlignOutside,width: 1.5),
-            borderRadius: const BorderRadius.all(Radius.circular(4)),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: child,
-        );
-      },
-
-    );
-
-    //Add Window to List
-
-
-    _windows.add(resizableWindow);
-    _windowParameters[key] = parameter;
-
-    rebuildWindow(_windows.length-2);
-
-    // Update Widgets after adding the new App
-    _onUpdate();
-
-  }
-
-  bool isTopWindow(Key key) => _windows.last.key == key;
-
-  Size _getCornerPosition(){
-    double x = 0;
-    double y = 0;
-
-    _windowParameters.forEach((key, value) {
-      x = max(value.cornerX,x);
-      y = max(value.cornerY,y);
-    });
-    return Size(x,y);
-  }
-
-  void closeWindow(Key? key){
-    if (key==null) return;
-    var window = _windows.cast<ResizableWindow?>().firstWhere((window) => window?.key == key, orElse: () => null);
-
-    if(window!=null){
-      _windows.remove(window);
-      rebuildWindow(_windows.length-1);
-      _windowParameters.remove(key);
-
-      _onUpdate();
-    }
-  }
-
-  void rebuildWindow(int index) {
-    if (index >= 0 && index < _windows.length) {
-      (_windows[index].key as GlobalKey<ResizableWindowState>?)?.currentState?.rebuild();
-    }
-  }
-
-  bool _keyHandler(KeyEvent event){
-    if(event is KeyDownEvent ){
-      if(event.logicalKey == LogicalKeyboardKey.escape){
-        if(_windows.isNotEmpty){
-          closeWindow(_windows.last.key);
-        }
-
+  void init(){
+    verticalController.addListener(() {
+      if (verticalScrollBarController.hasClients && !verticalScrollBarController.position.isScrollingNotifier.value) {
+        verticalScrollBarController.jumpTo(verticalController.position.pixels);
       }
+    });
+    verticalScrollBarController.addListener(() {
+      if (verticalController.hasClients && !verticalController.position.isScrollingNotifier.value) {
+        verticalController.jumpTo(verticalScrollBarController.position.pixels);
+      }
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      tabMenuController.init();
+      requestLastWindowFocus();
+    });
+  }
+
+  @override
+  void dispose() {
+    horizontalController.dispose();
+    verticalController.dispose();
+    verticalScrollBarController.dispose();
+    tabMenuController.dispose();
+    _debouncer.dispose();
+
+    for (var controller in _controllers.values) {
+      controller.dispose();
+    }
+    _controllers.clear();
+    super.dispose();
+  }
+
+  bool onKeyEvent(KeyEvent event){
+    if(event is KeyDownEvent ){
       if(HardwareKeyboard.instance.isControlPressed){
-        if(event.logicalKey == LogicalKeyboardKey.arrowRight){
-          if(_windows.length>1){
-            ResizableWindow window = _windows.removeAt(0);
-            _windows.add(window);
-            _onUpdate();
-            rebuildWindow(_windows.length-2);
-            rebuildWindow(_windows.length-1);
+        if(HardwareKeyboard.instance.isAltPressed){
+          if(HardwareKeyboard.instance.isShiftPressed){
+            // CTRL + ALT + SHIFT + Arrow for move window Position
+            final window = frontWindow;
+            if(window!=null){
+              if(event.logicalKey == LogicalKeyboardKey.arrowRight){
+                window.moveRight();
+                return true;
+              }
+              if(event.logicalKey == LogicalKeyboardKey.arrowLeft){
+                window.moveLeft();
+                return true;
+              }
+              if(event.logicalKey == LogicalKeyboardKey.arrowUp){
+                window.moveUp();
+                return true;
+              }
+              if(event.logicalKey == LogicalKeyboardKey.arrowDown){
+                window.moveDown();
+                return true;
+              }
+
+              /*var param = _windowParameters[windowKey]?.clone;
+                  if(param!=null){
+                    scrollTo(param.x, param.y);
+                  }*/
+            }
           }
-          return true;
-        }
-        if(event.logicalKey == LogicalKeyboardKey.arrowLeft){
-          if(_windows.length>1){
-            ResizableWindow window = _windows.removeLast();
-            _windows.insert(0, window);
-            _onUpdate();
-            rebuildWindow(0);
-            rebuildWindow(_windows.length-1);
+
+          // CTRL + ALT + Arrow for move focus
+
+          if(event.logicalKey == LogicalKeyboardKey.arrowRight){
+            moveFocusNext();
+            return true;
           }
-          return true;
+          if(event.logicalKey == LogicalKeyboardKey.arrowLeft){
+            moveFocusPrevious();
+            return true;
+          }
+
         }
+      }
+
+      if(event.logicalKey == LogicalKeyboardKey.escape){
+        removeFrontWindow();
+        return true;
       }
     }
     return false;
   }
 
+  void _addController(String tag,ResizeableWindowController controller){
+    _controllers[tag]=controller;
+    _tabControllers[tag]=controller;
+  }
+  void _removeController(String tag){
+    final controller = _controllers[tag];
+    if (controller != null) {
+      _controllers.remove(tag);
+      _tabControllers.remove(tag);
+      controller.dispose();
+    }
+  }
+
+  void addWindow({required Widget Function(ResizeableWindowController controller) child, required ParameterWindow parameter, bool notify=true}) {
+    final tag = parameter.tag;
+    if(_controllers.containsKey(tag)) {
+      throw Exception('Tag $tag already exists');
+    }
+
+    if(parameter.x==-1 || parameter.y==-1){
+      //Centering Widget
+      final double centerX = max(0,(screenSize.width-parameter.currentWidth)/2)-(Random().nextInt(60)-30);
+      final double centerY = max(0,(screenSize.height-parameter.currentHeight)/2)-(Random().nextInt(60)-30);
+      parameter.updateParameter(posX: centerX,posY: centerY);
+    }
+    
+
+    final newController = ResizeableWindowController(
+      parameter: parameter,
+      child: child,
+      onPositionChange: (position, size) {
+        _debouncer.run(() {
+          final needUpdate = calculateUpdateScreenSize();
+          if(needUpdate) notifyListeners();
+        });
+
+      },
+    );
+
+    newController.initAction(
+      onClose: (tag) => removeWindow(tag),
+      toggleMaximize: (action) {
+        isMaximize = !isMaximize;
+        action(screenSize);
+        notifyListeners();
+      },
+      onFocusChange: (hasFocus) {
+        if(this.hasFocus){
+          newController.toggleMaximize(screenSize,(hasFocus && isMaximize));
+        }
+
+        if (hasFocus) {
+          bringToFront(tag);
+        }
+      },
+    );
+    _addController(tag, newController);
+
+    WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+      newController.requestFocus();
+    });
+    if(notify)notifyListeners();
+  }
+
+  void removeWindow(String tag) {
+    if(tag.isEmpty) return;
+    _removeController(tag);
+    calculateUpdateScreenSize();
+    notifyListeners();
+    requestLastWindowFocus();
+  }
+
+  void removeFrontWindow(){
+    removeWindow(frontWindow?.tag??'');
+  }
+
+  bool calculateUpdateScreenSize() {
+    var valuesX = _controllers.values.map((c) => c.x+c.currentWidth);
+    var valuesY = _controllers.values.map((c) => c.y+c.currentHeight);
+
+    double maxX = valuesX.fold(0.0, max);
+    double maxY = valuesY.fold(0.0, max);
+
+    final double newX = maxX.clamp(screenSize.width, double.infinity);
+    final double newY = maxY.clamp(screenSize.height, double.infinity);
+
+    final newMdiSize = Size(newX, newY);
+    if(newMdiSize != mdiSize) {
+      mdiSize = newMdiSize;
+      return true;
+    }
+    return false;
+  }
+
+  void bringToFront(String tag) {
+    if (!_controllers.containsKey(tag)) return;
+
+    final controller = _controllers.remove(tag);
+    _controllers[tag] = controller!;
+
+    if(!isMaximize)scrollTo(controller.x, controller.y);
+    notifyListeners();
+  }
+
+  void requestLastWindowFocus(){
+    if(_controllers.isEmpty) return;
+    final controller = _controllers.values.last;
+    controller.requestFocus();
+  }
+
+  void moveFocusNext(){
+    if(_controllers.length<2) return;
+    final listTab = tabControllers;
+    final currentIndex = listTab.indexWhere((element) => element.tag==frontWindow?.tag);
+    if(currentIndex == -1) return;
+    int newIndex = currentIndex+1;
+    if(newIndex>=listTab.length) newIndex=0;
+    listTab[newIndex].requestFocus();
+  }
+
+  void moveFocusPrevious(){
+    if(_controllers.length<2) return;
+    final listTab = tabControllers;
+    final currentIndex = listTab.indexWhere((element) => element.tag==frontWindow?.tag);
+    if(currentIndex == -1) return;
+    int newIndex = currentIndex-1;
+    if(newIndex<0) newIndex=listTab.length-1;
+    listTab[newIndex].requestFocus();
+  }
+
+  Duration _calculateDuration(ScrollController scrollController, double targetPosition){
+    final distance = (targetPosition - scrollController.position.pixels).abs();
+    const double speedMultiplier = 0.5;
+    int maxDuration = 500;
+    int minDuration = 300;
+    return Duration(milliseconds: (distance * speedMultiplier).toInt().clamp(minDuration, maxDuration));
+  }
+
+  Future<void> scrollTo(double x, double y) async {
+    // Get position objects for easier access and clarity
+    final posH = horizontalController.position;
+    final posV = verticalController.position;
+
+    // --- Logic Improvement: Clearer Variable Names ---
+    // Calculate the boundaries of the currently visible area
+    final visibleLeft = posH.pixels;
+    final visibleTop = posV.pixels; // <-- BUG FIX: Was 'mixY'
+
+    // Calculate the latest coordinate an item's top-left corner can be at
+    // and still be fully visible on screen.
+    final latestVisibleX = visibleLeft + screenSize.width - ParameterWindow.defaultMinWidth;
+    final latestVisibleY = visibleTop + screenSize.height - ParameterWindow.defaultMinHeight;
+
+    // Futures to hold our animation tasks
+    Future<void> horizontalScroll = Future.value();
+    Future<void> verticalScroll = Future.value();
+
+    // Check if horizontal scrolling is needed
+    if (x < visibleLeft || x > latestVisibleX) {
+      // --- Logic Improvement: Clamping ---
+      // Clamp the target to be within the scroll controller's limits
+      final targetX = x.clamp(posH.minScrollExtent, posH.maxScrollExtent);
+
+      // --- Suggestion: Consistent Animation ---
+      // The 'x == 0' check for jumpTo() is jarring.
+      // Consider replacing this 'if/else' with just the animateTo() call.
+      if (x == 0) {
+        horizontalController.jumpTo(0);
+      } else {
+        horizontalScroll = horizontalController.animateTo(
+          targetX,
+          duration: _calculateDuration(horizontalController, targetX),
+          curve: Curves.easeInOut, // <-- SUGGESTION: Use a consistent curve
+        );
+      }
+    }
+
+    // Check if vertical scrolling is needed
+    if (y < visibleTop || y > latestVisibleY) {
+      // Clamp the target to be within the scroll controller's limits
+      final targetY = y.clamp(posV.minScrollExtent, posV.maxScrollExtent);
+
+      if (y == 0) {
+        verticalController.jumpTo(0);
+      } else {
+        verticalScroll = verticalController.animateTo(
+          targetY,
+          duration: _calculateDuration(verticalController, targetY),
+          curve: Curves.easeInOut, // <-- SUGGESTION: Use a consistent curve
+        );
+      }
+    }
+
+    // --- BUG FIX: Parallel Animation ---
+    // Run both animations at the same time for a smooth diagonal scroll.
+    await Future.wait([horizontalScroll, verticalScroll]);
+  }
+
+  void reorderTabMap(int oldIndex, int newIndex) {
+    if (oldIndex < 0 || oldIndex >= _tabControllers.length ||
+        newIndex < 0 || newIndex > _tabControllers.length ||
+        oldIndex == newIndex) {
+      return;
+    }
+    final List<ResizeableWindowController> tempControllers = _tabControllers.values.toList();
+    if (oldIndex < newIndex) {
+      newIndex -= 1;
+    }
+    final ResizeableWindowController item = tempControllers.removeAt(oldIndex);
+    tempControllers.insert(newIndex, item);
+
+    _tabControllers.clear();
+    for (final controller in tempControllers) {
+      _tabControllers[controller.tag] = controller;
+    }
+  }
+
+}
+
+class _Debouncer {
+  final int milliseconds;
+  Timer? _timer;
+
+  _Debouncer({required this.milliseconds});
+
+  void run(VoidCallback action) {
+    // If a timer is already active, cancel it
+    if (_timer != null) {
+      _timer!.cancel();
+    }
+
+    // Start a new timer
+    _timer = Timer(Duration(milliseconds: milliseconds), action);
+  }
+
+  void dispose() {
+    _timer?.cancel();
+  }
 }

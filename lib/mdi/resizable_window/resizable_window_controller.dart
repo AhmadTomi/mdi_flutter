@@ -4,97 +4,133 @@ import 'package:flutter/material.dart';
 import 'package:flutter_app_mdi/mdi/parameter_window.dart';
 
 class ResizeableWindowController extends ChangeNotifier{
-  final ParameterWindow parameter;
-  final void Function(Size position, Size size)? onPositionChange;
+  final FocusScopeNode focusScopeNode;
   final Widget Function(ResizeableWindowController controller) child;
   void Function (bool hasFocus)? onFocusChange;
   void Function(String tag)? _onClose;
+  void Function(Size position, Size size)? _onPositionChange;
   void Function(void Function(Size screenSize) action)? _toggleMaximize;
+  final ParameterWindow _parameter;
 
   ResizeableWindowController(
       {
-        required this.parameter,
-        this.onPositionChange,
+        required ParameterWindow parameter,
         double? snapRange,
         double? widgetPadding,
         required this.child,
 
       }):snapRange = snapRange??30, 
-        widgetPadding = 0.0
+        widgetPadding = 0.0,
+        _parameter = parameter,
+        focusScopeNode = FocusScopeNode()
   {
     x = parameter.x;
     y = parameter.y;
     currentHeight = parameter.currentHeight;
     currentWidth = parameter.currentWidth;
+    _argument = parameter.argument;
   }
 
   void initAction({
     void Function (bool hasFocus)? onFocusChange,
     void Function(String tag)?onClose,
     void Function(void Function(Size screenSize))?toggleMaximize,
+    void Function(Size position, Size size)? onPositionChange
 }){
     this.onFocusChange = onFocusChange;
     _onClose = onClose;
     _toggleMaximize = toggleMaximize;
+    _onPositionChange = onPositionChange;
   }
+
 
   double x = 0;
   double y = 0;
   double currentHeight = 400;
   double currentWidth = 400;
+  Map<String, dynamic>? _argument;
 
-  FocusScopeNode? focusScopeNode;
+
   
   bool isMaximized = false;
   Size lastSize = const Size(0,0);
   Size lastPosition = const Size(0,0);
   Size screenSize = const Size(0, 0);
 
+  bool _isDisposed = false;
+  bool get isDisposed => _isDisposed;
 
-  bool get hasFocus => focusScopeNode?.hasFocus==true;
-  String get tag => parameter.tag;
-  String get title => parameter.title;
+  bool get hasFocus => focusScopeNode.hasFocus;
+  String get tag => _parameter.tag;
+  String get title => _parameter.title;
+
+  double get xBound => x+currentWidth;
+  double get yBound => y+currentHeight;
+
 
   late final double snapRange;
   late final double widgetPadding;
 
+  ParameterWindow get parameterWindow => _parameter.copyWith(
+    x: x,
+    y: y,
+    currentHeight: currentHeight,
+    currentWidth: currentWidth,
+    argument: _argument
+  );
+
+  int _lastTap = 0;
+  int _consecutiveTaps = 1;
+
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    focusScopeNode.dispose();
+    super.dispose();
+  }
+
   void close(){
-    _onClose?.call(parameter.tag);
+    _onClose?.call(_parameter.tag);
   }
 
   void positionChangeAction(){
-    onPositionChange?.call(Size(x, y),Size(currentWidth, currentHeight));
+    _onPositionChange?.call(Size(x, y),Size(currentWidth, currentHeight));
   }
 
   void requestFocus(){
-    if(focusScopeNode!=null && focusScopeNode?.hasFocus==false){
-      focusScopeNode?.requestScopeFocus();
+    if(focusScopeNode.hasFocus==false){
+      focusScopeNode.requestScopeFocus();
     }
   }
 
   void moveLeft(){
     if(isMaximized)return;
-      x = max(0, _nearestMultiple(x-ParameterWindow.defaultWidth,ParameterWindow.defaultWidth));
-      y = max(0, _nearestMultiple(y,ParameterWindow.defaultMinHeight));
-      notifyListeners();
+    x = max(0, _nearestMultiple(x-ParameterWindow.defaultWidth,ParameterWindow.defaultWidth));
+    y = max(0, _nearestMultiple(y,ParameterWindow.defaultMinHeight));
+    notifyListeners();
+    positionChangeAction();
   }
   void moveRight(){
     if(isMaximized)return;
     x = max(0, _nearestMultiple(x+ParameterWindow.defaultWidth,ParameterWindow.defaultWidth));
     y = max(0, _nearestMultiple(y,ParameterWindow.defaultMinHeight));
-      notifyListeners();
+    notifyListeners();
+    positionChangeAction();
   }
   void moveUp(){
     if(isMaximized)return;
-      y = max(0, _nearestMultiple(y-ParameterWindow.defaultMinHeight,ParameterWindow.defaultMinHeight));
-      x = max(0, _nearestMultiple(x,ParameterWindow.defaultWidth));
-      notifyListeners();
+    y = max(0, _nearestMultiple(y-ParameterWindow.defaultMinHeight,ParameterWindow.defaultMinHeight));
+    x = max(0, _nearestMultiple(x,ParameterWindow.defaultWidth));
+    notifyListeners();
+    positionChangeAction();
   }
   void moveDown(){
     if(isMaximized)return;
     y = max(0, _nearestMultiple(y+ParameterWindow.defaultMinHeight,ParameterWindow.defaultMinHeight));
     x = max(0, _nearestMultiple(x,ParameterWindow.defaultWidth));
     notifyListeners();
+    positionChangeAction();
   }
 
   double _nearestMultiple(double number, double n) {
@@ -171,8 +207,8 @@ class ResizeableWindowController extends ChangeNotifier{
     double newX = x + details.delta.dx;
     double newWidth = currentWidth - details.delta.dx;
 
-      if (newWidth < parameter.minWidth) {
-        currentWidth = parameter.minWidth;
+      if (newWidth < _parameter.minWidth) {
+        currentWidth = _parameter.minWidth;
         x = rightPos - currentWidth;
       } else if (newX <= 0) {
         x = 0;
@@ -185,16 +221,16 @@ class ResizeableWindowController extends ChangeNotifier{
 
   void onHorizontalDragRight(DragUpdateDetails details) {
       currentWidth += details.delta.dx;
-      if (currentWidth < parameter.minWidth) {
-        currentWidth = parameter.minWidth;
+      if (currentWidth < _parameter.minWidth) {
+        currentWidth = _parameter.minWidth;
       }
       notifyListeners();
   }
 
   void onHorizontalDragBottom(DragUpdateDetails details) {
       currentHeight += details.delta.dy;
-      if (currentHeight < parameter.minHeight) {
-        currentHeight = parameter.minHeight;
+      if (currentHeight < _parameter.minHeight) {
+        currentHeight = _parameter.minHeight;
       }
   }
 
@@ -202,8 +238,8 @@ class ResizeableWindowController extends ChangeNotifier{
     double bottomPos = currentHeight + y;
     double newY = y + details.delta.dy;
     double newHeight = currentHeight - details.delta.dy;
-      if (newHeight < parameter.minHeight) {
-        currentHeight = parameter.minHeight;
+      if (newHeight < _parameter.minHeight) {
+        currentHeight = _parameter.minHeight;
         y = bottomPos - currentHeight;
       } else if (newY <= 0) {
         y = 0;
@@ -263,47 +299,19 @@ class ResizeableWindowController extends ChangeNotifier{
       supportedDevices: const {
         PointerDeviceKind.mouse,
       },
-      onTap:isMaximized?null: () {
+      onTap:() {
         if(canDoubleClick){
           int now = DateTime.now().millisecondsSinceEpoch;
-          /*if (now - lastTap < 300) {
-            consecutiveTaps++;
-            if (consecutiveTaps >= 2) {
-              setState(() {
-                widget.onMaximize((width, height) {
-                  if(currentWidth>=(width-widgetPadding) && currentHeight>=(height-widgetPadding)){
-                    x = lastPosition.width;
-                    y = lastPosition.height;
-                    currentWidth = lastSize.width;
-                    currentHeight = lastSize.height;
-
-                    parameter.setMaximize(false);
-                    return false;
-                  }
-
-                  //save current state
-                  lastPosition = Size(controller.x, controller.y);
-                  lastSize = Size(controller.currentWidth, controller.currentHeight);
-
-                  //change to fullscreen
-                  parameter.setMaximize(true);
-                  controller.x = 0;
-                  controller.y = 0;
-                  controller.currentWidth = width-controller.widgetPadding;
-                  controller.currentHeight = height-controller.widgetPadding;
-                  return true;
-                });
-                widget.onWindowResized(x,y,currentWidth,currentHeight);
-              });
+          if (now - _lastTap < 300) {
+            _consecutiveTaps++;
+            if (_consecutiveTaps >= 2) {
+                _toggleMaximize?.call((screenSize) => toggleMaximize(screenSize));
             }
           }
-          consecutiveTaps = 1;
-          lastTap = now;*/
+          _consecutiveTaps = 1;
+          _lastTap = now;
         }
         requestFocus();
-      },
-      onDoubleTap: () {
-        _toggleMaximize?.call((screenSize) => toggleMaximize(screenSize));
       },
       onPanDown:isMaximized?null: (details) {
         requestFocus();

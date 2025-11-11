@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_app_mdi/mdi/mdi_style.dart';
 import 'package:flutter_app_mdi/mdi/parameter_window.dart';
 
-import 'mdi/mdi_controller.dart';
-import 'mdi/mdi_manager.dart';
+import 'mdi/mdi_manager/mdi_controller.dart';
+import 'mdi/mdi_manager/mdi_manager.dart';
 
 void main() {
   runApp(const MyApp());
@@ -19,6 +20,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
+      debugShowCheckedModeBanner: false,
       home: const MyHomePage(),
     );
   }
@@ -56,56 +58,82 @@ class _MyHomePageState extends State<MyHomePage> {
       floatingActionButton: FloatingActionButton(
           backgroundColor: Colors.blue,
           onPressed: (){
-            final String id = count.toString();
+            String id = count.toString();
             controller.addWindow(
-              parameter: ParameterWindow(title: "Window $id Syalalalala",id: DateTime.now().millisecondsSinceEpoch.toString()),
-              child: (controller) => Column(
+              parameter: ParameterWindow(
+                title: "Window $id Syalalalala",
+                id: DateTime.now().millisecondsSinceEpoch.toString(),
+              ),
+              child: (controller) => Builder(builder: (context) => Column(
                 children: [
                   controller.dragWidget(
-                    child: Container(
-                        color: Colors.blue,
-                        padding: EdgeInsets.symmetric(vertical: 4,horizontal: 12),
+                      child: Container(
+                        color: Colors.blue.shade700,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        height: 30,
                         alignment: Alignment.center,
                         child: Row(
                           children: [
-                            Expanded(child: Text("data $id")),
+                            Expanded(
+                              child: Text(
+                                "Window $id",
+                                style: const TextStyle(color: Colors.white),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                             IconButton(
-                                padding: EdgeInsets.zero,
-                                iconSize: 16,
-                                visualDensity: VisualDensity(horizontal: -4,vertical: -4),
-                                onPressed: (){
-                                  controller.close();
-                                }, icon: const Icon(Icons.close))
+                              padding: EdgeInsets.zero,
+                              iconSize: 16,
+                              visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+                              onPressed: () => controller.close(), // Close button
+                              icon: const Icon(Icons.close, color: Colors.white),
+                            )
                           ],
-                        )
-                    ),
+                        ),
+                      )
                   ),
                   Expanded(
                     child: Container(
-                        padding: const EdgeInsets.all(16),
-                        alignment: Alignment.topLeft,
-                        child: SingleChildScrollView(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.max,
-                            children: [
-                              Text('''
- ${id.toString()} Lorem Ipsum is simply dummy text of the printing and typesetting industry. 
-Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, 
-when an unknown printer took a galley of type and scrambled it to make a type specimen book. 
-It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. 
-It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with 
-desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.
-            ''',style: TextStyle(color: Colors.white),),
-                            ],
-                          ),
-                        )),
+                      padding: const EdgeInsets.all(16),
+                      alignment: Alignment.topLeft,
+                      width: double.infinity, // Ensure it fills the space
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '''
+                      ${id.toString()} Lorem Ipsum is simply dummy text...
+                                  ''',
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                            // If you need the controller (e.g., for a button):
+                            TextButton(
+                              onPressed: () {
+                                // This is how you access the controller now!
+                                controller.close();
+                              },
+                              child: const Text("Close from inside"),
+                            )
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ],
-              ),
+              )),
             );
             count++;
           }),
-      body: MdiManager(controller: controller),
+      body: MdiManager(
+          controller: controller,
+        style: MdiStyleConfiguration(
+          borderRadius: 4,
+          gap: 1,
+        ),
+      ),
     );
   }
 }

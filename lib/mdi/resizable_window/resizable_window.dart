@@ -1,9 +1,8 @@
-import 'dart:math';
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_app_mdi/mdi/parameter_window.dart';
-import 'package:flutter_app_mdi/mdi/resizable_window_controller.dart';
+import 'package:flutter_app_mdi/mdi/resizable_window/resizable_window_controller.dart';
+
+import '../mdi_style.dart';
+
 
 class ResizableWindow extends StatefulWidget {
   final ResizeableWindowController controller;
@@ -16,24 +15,11 @@ class ResizableWindow extends StatefulWidget {
 
 class ResizableWindowState extends State<ResizableWindow> {
 
-
-  Size lastPosition = const Size(0, 0);
-  Size lastSize = const Size(400, 400);
-
-
-
-  int lastTap = 0;
-  int consecutiveTaps = 1;
-
-
   late final ResizeableWindowController controller;
 
   @override
   void initState() {
-
     controller = widget.controller;
-    controller.focusScopeNode = FocusScopeNode();
-
     controller.addListener(_rebuildWidget);
     super.initState();
   }
@@ -41,8 +27,6 @@ class ResizableWindowState extends State<ResizableWindow> {
   @override
   void dispose() {
     controller.removeListener(_rebuildWidget);
-    controller.focusScopeNode?.dispose();
-    controller.focusScopeNode = null;
     super.dispose();
   }
 
@@ -51,9 +35,11 @@ class ResizableWindowState extends State<ResizableWindow> {
     return Positioned(
         top: controller.y,
         left: controller.x,
-        child: Padding(
-          padding: EdgeInsets.all(controller.widgetPadding),
-          child: _windowBuilder(1),
+        child: RepaintBoundary(
+          child: Padding(
+            padding: EdgeInsets.all(controller.widgetPadding),
+            child: _windowBuilder(),
+          ),
         )
     );
   }
@@ -72,77 +58,9 @@ class ResizableWindowState extends State<ResizableWindow> {
     });
   }
 
-  Widget dragWidget({required Widget child, bool canDoubleClick = true}){
-    return GestureDetector(
-      supportedDevices: const {
-        PointerDeviceKind.mouse,
-      },
-      onTap: () {
-        /*if(canDoubleClick){
-          int now = DateTime.now().millisecondsSinceEpoch;
-          if (now - lastTap < 300) {
-            consecutiveTaps++;
-            if (consecutiveTaps >= 2) {
-              setState(() {
-                widget.onMaximize((width, height) {
-                  if(controller.currentWidth>=(width-controller.widgetPadding) && controller.currentHeight>=(height-controller.widgetPadding)){
-                    controller.x = lastPosition.width;
-                    controller.y = lastPosition.height;
-                    controller.currentWidth = lastSize.width;
-                    controller.currentHeight = lastSize.height;
-
-                    parameter.setMaximize(false);
-                    return false;
-                  }
-
-                  //save current state
-                  lastPosition = Size(controller.x, controller.y);
-                  lastSize = Size(controller.currentWidth, controller.currentHeight);
-
-                  //change to fullscreen
-                  parameter.setMaximize(true);
-                  controller.x = 0;
-                  controller.y = 0;
-                  controller.currentWidth = width-controller.widgetPadding;
-                  controller.currentHeight = height-controller.widgetPadding;
-                  return true;
-                });
-                widget.onWindowResized(controller.x,controller.y,controller.currentWidth,controller.currentHeight);
-              });
-            }
-          }
-          consecutiveTaps = 1;
-          lastTap = now;
-        }*/
-        controller.requestFocus();
-      },
-      onPanDown: (details) {
-        controller.requestFocus();
-        // widget.onWindowDraggedStart();
-      },
-      onPanUpdate: (tapInfo) {
-        setState(() {
-          controller.x += tapInfo.delta.dx;
-          controller.y += tapInfo.delta.dy;
-          controller.x = controller.x.clamp(0.0, double.infinity);
-          controller.y = controller.y.clamp(0.0, double.infinity);
-        });
-        // widget.onWindowDragged(tapInfo.delta.dx, tapInfo.delta.dy);
-      },
-      onPanEnd: (details) {
-        controller.onWindowDragEnd();
-        controller.positionChangeAction();
-        // widget.onWindowDraggedEnd(controller.x,controller.y);
-      },
-      child: MouseRegion(
-          cursor: SystemMouseCursors.click,
-          opaque: true,
-          hitTestBehavior: HitTestBehavior.translucent,
-          child: child),
-    );
-  }
-
-  Widget _windowBuilder(double gap){
+  Widget _windowBuilder(){
+    final mdiStyle = MdiStyleProvider.of(context);
+    final gap = mdiStyle.gap;
     return Padding(
       padding: EdgeInsets.all(controller.isMaximized?0:gap),
       child: FocusScope(
@@ -155,45 +73,60 @@ class ResizableWindowState extends State<ResizableWindow> {
           onTap: (controller.hasFocus)?null:controller.requestFocus,
           child: Container(
             decoration: ShapeDecoration(
-              color: Color(0xFF1b1b1b),
+              color: mdiStyle.windowBackgroundColor,
               shape: RoundedRectangleBorder(
-                side: BorderSide(color: controller.isMaximized?Colors.transparent:controller.hasFocus?Colors.yellow: Colors.red, width: 1.2,strokeAlign: 0),
-                borderRadius: BorderRadius.circular(controller.isMaximized?0:4),
+                side: BorderSide(color: controller.isMaximized?mdiStyle.maximizedBorderColor:controller.hasFocus?mdiStyle.focusedBorderColor: mdiStyle.unfocusedBorderColor, width: 1.2,strokeAlign: 0),
+                borderRadius: BorderRadius.circular(controller.isMaximized?0:mdiStyle.borderRadius),
               ),
             ),
-            /*decoration: BoxDecoration(
-              color: const Color(0xFF1b1b1b),
-              borderRadius: BorderRadius.circular(12),
-              shape: RoundedSuperellipseBorder(
-                borderRadius: BorderRadius.circular(28.0),
-              ), // S
-              // border: Border.all(color:controller.hasFocus? Colors.green:Colors.yellow,strokeAlign: BorderSide.strokeAlignCenter,width: 1.2),
-            ),*/
             width: controller.currentWidth-(controller.isMaximized?0:(2*gap)),
             height: controller.currentHeight-(controller.isMaximized?0:(2*gap)),
             clipBehavior: Clip.antiAliasWithSaveLayer,
             child: ClipRRect(
               clipBehavior: Clip.antiAlias,
-              borderRadius: BorderRadiusGeometry.circular(controller.isMaximized?0:3),
+              borderRadius: BorderRadiusGeometry.circular(controller.isMaximized?0:mdiStyle.borderRadius-1),
               child: SizedBox(
-                height: controller.currentHeight+1,
+                height: controller.currentHeight+gap,
                 child: Stack(
                   children: [
                     // ScaleWidget(minWidth: ParameterWindow.defaultMinWidth*2, maxScale: LocalStorage.userPreferencesDB.widgetScaleLimit, child: widget.body(context)),
                     SizedBox.expand(
                       child: Column(
                         children: [
-                          // dragWidget(
-                          //   child: widget.header?.call(context)??const SizedBox(),
-                          // ),
-                          Expanded(child: widget.controller.child(widget.controller)),
+                          /*controller.dragWidget(
+                            child: Container(
+                              color: Colors.blue.shade700,
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              height: 30,
+                              alignment: Alignment.center,
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      controller.title,
+                                      style: const TextStyle(color: Colors.white),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  IconButton(
+                                    padding: EdgeInsets.zero,
+                                    iconSize: 16,
+                                    visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+                                    onPressed: () => controller.close(), // Close button
+                                    icon: const Icon(Icons.close, color: Colors.white),
+                                  )
+                                ],
+                              ),
+                            ),
+                          ),*/
+                          Expanded(child: widget.controller.child(controller)),
                         ],
                       ),
                     ),
                     IgnorePointer(
                       ignoring: true,
                       child: ColoredBox(
-                        color: Colors.blue.withValues(alpha:(controller.hasFocus)?0.0: 0.6),
+                          color: controller.hasFocus?Colors.transparent:mdiStyle.unfocusBlockerColor,
                           child: const SizedBox.expand()),
                     ),
                     // widget.body(context),
@@ -402,6 +335,7 @@ class ResizableWindowState extends State<ResizableWindow> {
                         )),
                   ],
                 ),
+
               ),
             ),
           ),

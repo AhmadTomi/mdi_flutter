@@ -12,11 +12,13 @@ import '../mdi_tab/mdi_tab_controller.dart';
 class MdiController extends ChangeNotifier{
   final Map<String, ResizeableWindowController> _controllers = {};
 
-
   final List<Widget> _cachedWindowWidgets = [];
   List<Widget> get windowWidgets => _cachedWindowWidgets;
 
+  final _windowChangeStreamController =
+  StreamController<String>.broadcast();
 
+  Stream<String> get onWindowChange => _windowChangeStreamController.stream;
 
   Size screenSize = Size.zero;
   Size mdiSize = Size.zero;
@@ -33,6 +35,14 @@ class MdiController extends ChangeNotifier{
   final _debouncer = _Debouncer(milliseconds: 100);
 
   ResizeableWindowController? get frontWindow => (_controllers.isNotEmpty) ?_controllers.values.last : null;
+  ResizeableWindowController? getWindow(String tag) => _controllers[tag];
+  bool isWindowExist(String tag) => _controllers.containsKey(tag);
+  bool isFrontWindow(String tag)=> frontWindow?.tag==tag;
+  Map<String, ParameterWindow> get parameterWindowsMap => _controllers.map((key, value) => MapEntry(key, value.parameterWindow));
+  List<ParameterWindow> get parameterWindows => _controllers.values.map((e) => e.parameterWindow).toList();
+
+
+
 
   void init(){
     verticalController.addListener(() {
@@ -46,6 +56,8 @@ class MdiController extends ChangeNotifier{
       }
     });
 
+    HardwareKeyboard.instance.addHandler(onKeyEvent);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       tabMenuController.init();
       requestLastWindowFocus();
@@ -54,6 +66,9 @@ class MdiController extends ChangeNotifier{
 
   @override
   void dispose() {
+
+    HardwareKeyboard.instance.removeHandler(onKeyEvent);
+
     horizontalController.dispose();
     verticalController.dispose();
     verticalScrollBarController.dispose();
@@ -64,6 +79,7 @@ class MdiController extends ChangeNotifier{
       controller.dispose();
     }
     _controllers.clear();
+    _windowChangeStreamController.close();
     super.dispose();
   }
 
@@ -101,21 +117,16 @@ class MdiController extends ChangeNotifier{
 
           // CTRL + ALT + Arrow for move focus
 
-          if(event.logicalKey == LogicalKeyboardKey.arrowRight){
+          if(event.logicalKey == LogicalKeyboardKey.arrowRight || event.logicalKey == LogicalKeyboardKey.arrowUp){
             moveFocusNext();
             return true;
-          }
-          if(event.logicalKey == LogicalKeyboardKey.arrowLeft){
+          } else
+          if(event.logicalKey == LogicalKeyboardKey.arrowLeft || event.logicalKey == LogicalKeyboardKey.arrowDown){
             moveFocusPrevious();
             return true;
           }
 
         }
-      }
-
-      if(event.logicalKey == LogicalKeyboardKey.escape){
-        removeFrontWindow();
-        return true;
       }
     }
     return false;
@@ -125,6 +136,9 @@ class MdiController extends ChangeNotifier{
     _controllers[tag]=controller;
     tabMenuController.addTab(tag, controller);
     _cachedWindowWidgets.add(widget);
+    if (!_windowChangeStreamController.isClosed) {
+      _windowChangeStreamController.add(controller.tag);
+    }
   }
   void _removeController(String tag){
     final controller = _controllers[tag];
@@ -132,11 +146,16 @@ class MdiController extends ChangeNotifier{
       _controllers.remove(tag);
       tabMenuController.removeTab(tag);
       _cachedWindowWidgets.removeWhere((w) => w.key == ValueKey(tag));
+      if (!_windowChangeStreamController.isClosed) {
+        _windowChangeStreamController.add(controller.tag);
+      }
       controller.dispose();
+
     }
+
   }
 
-  void addWindow({
+  ResizeableWindowController addWindow ({
     required ParameterWindow parameter,
     required Widget Function(ResizeableWindowController controller) child,
     bool notify=true
@@ -169,7 +188,8 @@ class MdiController extends ChangeNotifier{
       },
       onFocusChange: (hasFocus) {
         if (newController.isDisposed) return;
-        if (this.hasFocus) {
+
+        if(this.hasFocus){
           newController.toggleMaximize(screenSize, (hasFocus && isMaximize));
         }
 
@@ -185,8 +205,15 @@ class MdiController extends ChangeNotifier{
           });
 
           if(needUpdate) notifyListeners();
+          if (!_windowChangeStreamController.isClosed) {
+            _windowChangeStreamController.add(newController.tag);
+          }
         });
-
+      },
+      onArgumentUpdate: (argument) {
+        if (!_windowChangeStreamController.isClosed) {
+          _windowChangeStreamController.add(newController.tag);
+        }
       },
     );
     final newWidget = ResizableWindow(
@@ -195,22 +222,28 @@ class MdiController extends ChangeNotifier{
     );
     _addController(tag, newController, newWidget);
 
+    if(notify)notifyListeners();
+
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
       newController.requestFocus();
-    });
-    if(notify)notifyListeners();
+
+    },);
+
+
+    return newController;
   }
 
-  void removeWindow(String tag) {
-    if(tag.isEmpty) return;
+  String removeWindow(String tag) {
+    if(tag.isEmpty) return '';
     _removeController(tag);
     calculateUpdateScreenSize();
     notifyListeners();
     requestLastWindowFocus();
+    return tag;
   }
 
-  void removeFrontWindow(){
-    removeWindow(frontWindow?.tag??'');
+  String removeFrontWindow(){
+    return removeWindow(frontWindow?.tag??'');
   }
 
   void removeAllWindows(){
@@ -241,6 +274,8 @@ class MdiController extends ChangeNotifier{
   }
 
   void bringToFront(String tag) {
+
+    if(_controllers.keys.last == tag) return;
 
     if (!_controllers.containsKey(tag)) return;
 
@@ -353,7 +388,6 @@ class MdiController extends ChangeNotifier{
     frontWindow?.toggleMaximize(screenSize,isMaximize);
     notifyListeners();
   }
-
 }
 
 class _Debouncer {

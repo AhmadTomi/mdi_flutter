@@ -17,7 +17,6 @@ class _MdiManagerState extends State<MdiManager> {
 
   @override
   void initState() {
-    widget.controller.init();
     widget.controller.addListener(_rebuildWidget);
     super.initState();
   }
@@ -33,13 +32,11 @@ class _MdiManagerState extends State<MdiManager> {
     return MdiStyleProvider(
       style: widget.style ?? MdiStyleConfiguration(),
       child: FocusScope(
-        onKeyEvent: (node, event) {
-          final isHandled = widget.controller.onKeyEvent(event);
-          return (isHandled)? KeyEventResult.handled:KeyEventResult.ignored;
-        },
         onFocusChange: (value) {
+          // WidgetsBinding.instance.addPostFrameCallback((_) {
           widget.controller.hasFocus = value;
           _rebuildWidget();
+          // });
         },
         child: Builder(builder: (context) => ColoredBox(
           color: MdiStyleProvider.of(context).mdiBackgroundColor,

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_app_mdi/mdi/parameter_window.dart';
@@ -41,10 +42,11 @@ class MdiController extends ChangeNotifier{
   Map<String, ParameterWindow> get parameterWindowsMap => _controllers.map((key, value) => MapEntry(key, value.parameterWindow));
   List<ParameterWindow> get parameterWindows => _controllers.values.map((e) => e.parameterWindow).toList();
 
+  void Function(String tag)? _onCloseCallback;
 
 
 
-  void init(){
+  void init([void Function(String tag)? onClose]){
     verticalController.addListener(() {
       if (verticalScrollBarController.hasClients && !verticalScrollBarController.position.isScrollingNotifier.value) {
         verticalScrollBarController.jumpTo(verticalController.position.pixels);
@@ -55,6 +57,8 @@ class MdiController extends ChangeNotifier{
         verticalController.jumpTo(verticalScrollBarController.position.pixels);
       }
     });
+
+    _onCloseCallback = onClose;
 
     HardwareKeyboard.instance.addHandler(onKeyEvent);
 
@@ -188,14 +192,7 @@ class MdiController extends ChangeNotifier{
       },
       onFocusChange: (hasFocus) {
         if (newController.isDisposed) return;
-
-        if(this.hasFocus){
-          newController.toggleMaximize(screenSize, (hasFocus && isMaximize));
-        }
-
-        if (hasFocus) {
-          bringToFront(tag);
-        }
+        _onWindowChangeFocus(hasFocus,newController);
       },
       onPositionChange: (position, size) {
         _debouncer.run(() {
@@ -217,17 +214,16 @@ class MdiController extends ChangeNotifier{
       },
     );
     final newWidget = ResizableWindow(
-      key: ValueKey(tag), // The key is crucial!
+      key: ValueKey(tag),
       controller: newController,
     );
     _addController(tag, newController, newWidget);
 
-    if(notify)notifyListeners();
+    // if(notify)notifyListeners();
+    Future.delayed(Duration(milliseconds: 100)).then((value) {
+      if(notify)notifyListeners();
+    });
 
-    WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
-      newController.requestFocus();
-
-    },);
 
 
     return newController;
@@ -239,6 +235,7 @@ class MdiController extends ChangeNotifier{
     calculateUpdateScreenSize();
     notifyListeners();
     requestLastWindowFocus();
+    _onCloseCallback?.call(tag);
     return tag;
   }
 
@@ -273,15 +270,70 @@ class MdiController extends ChangeNotifier{
     return false;
   }
 
-  void bringToFront(String tag) {
+  void _onWindowChangeFocus(bool hasFocus, ResizeableWindowController controller) {
+
+    /*if (kDebugMode) {
+      String icon(bool b) => b ? "✅" : "⛔";
+      print(
+          "MDI Focus: ${icon(this.hasFocus)}, "
+              "Win [${controller.tag}] Focus: ${icon(hasFocus)}, "
+              "MDI Max: ${icon(isMaximize)}, "
+              "Is Front: ${icon(isFrontWindow(controller.tag))}");
+    }*/
+
+    if (!hasFocus) {
+      return;
+    }
+
+    final bool isChangingFrontWindow = frontWindow != controller;
+
+    if (isChangingFrontWindow) {
+      final oldFront = frontWindow;
+      _controllers.remove(controller.tag);
+      _controllers[controller.tag] = controller;
+      try {
+        final widget = _cachedWindowWidgets
+            .firstWhere((w) => w.key == ValueKey(controller.tag));
+        _cachedWindowWidgets.remove(widget);
+        _cachedWindowWidgets.add(widget);
+      } catch (e) {
+        if (kDebugMode) {
+          print(
+              "Error: Could not find widget for controller ${controller.tag} in cache.");
+        }
+      }
+
+      if (isMaximize) {
+        controller.toggleMaximize(screenSize, true);
+
+      } else {
+        scrollTo(controller.x, controller.y);
+      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        oldFront?.toggleMaximize(screenSize, false);
+        notifyListeners();
+      });
+    } else {
+      if (this.hasFocus) {
+        controller.toggleMaximize(screenSize, isMaximize);
+      }
+    }
+  }
+
+  void bringToFront(String tag,bool needMaximize, bool hasFocus) {
+
+
 
     if(_controllers.keys.last == tag) return;
 
     if (!_controllers.containsKey(tag)) return;
 
+
+
     final controller = _controllers.remove(tag);
     _controllers[tag] = controller!;
 
+    controller.toggleMaximize(screenSize, needMaximize);
 
     final widget =
     _cachedWindowWidgets.firstWhere((w) => w.key == ValueKey(tag));
@@ -290,7 +342,8 @@ class MdiController extends ChangeNotifier{
 
 
     if(!isMaximize)scrollTo(controller.x, controller.y);
-    notifyListeners();
+
+    // notifyListeners();
   }
 
   void requestLastWindowFocus(){
@@ -387,6 +440,12 @@ class MdiController extends ChangeNotifier{
     isMaximize = !isMaximize;
     frontWindow?.toggleMaximize(screenSize,isMaximize);
     notifyListeners();
+  }
+
+  void onFocusChange(bool value){
+    if(hasFocus != value){
+      hasFocus = value;
+    }
   }
 }
 

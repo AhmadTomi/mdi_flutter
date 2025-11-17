@@ -284,6 +284,8 @@ class ResizeableWindowController extends ChangeNotifier{
 
   void toggleMaximize(Size screenSize,[bool? isMaximize]){
 
+    // print("$tag - $isMaximize");
+
     if(isMaximize==isMaximized) return;
 
     if(isMaximized){
@@ -303,7 +305,6 @@ class ResizeableWindowController extends ChangeNotifier{
       currentHeight = screenSize.height;
     }
     isMaximized =!isMaximized;
-
     notifyListeners();
   }
   Widget dragWidget({required Widget child, bool canDoubleClick = true}){
@@ -312,6 +313,7 @@ class ResizeableWindowController extends ChangeNotifier{
         PointerDeviceKind.mouse,
       },
       onTap:() {
+        requestFocus();
         if(canDoubleClick){
           int now = DateTime.now().millisecondsSinceEpoch;
           if (now - _lastTap < 300) {
@@ -323,19 +325,22 @@ class ResizeableWindowController extends ChangeNotifier{
           _consecutiveTaps = 1;
           _lastTap = now;
         }
-        requestFocus();
+
       },
-      onPanDown:isMaximized?null: (details) {
-        requestFocus();
+      onPanStart: (details) {
+        if(!isMaximized) requestFocus();
       },
-      onPanUpdate: isMaximized?null: (tapInfo) {
+      onPanUpdate: (tapInfo) {
+        if(isMaximized) return;
+        requestFocus();
         x += tapInfo.delta.dx;
         y += tapInfo.delta.dy;
         x = x.clamp(0.0, double.infinity);
         y = y.clamp(0.0, double.infinity);
         notifyListeners();
       },
-      onPanEnd: isMaximized?null: (details) {
+      onPanEnd: (details) {
+        if(isMaximized) return;
         onWindowDragEnd();
         positionChangeAction();
       },

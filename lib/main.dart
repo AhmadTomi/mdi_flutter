@@ -42,6 +42,12 @@ class _MyHomePageState extends State<MyHomePage> {
   int count =1;
 
   @override
+  void initState() {
+    controller.init();
+    super.initState();
+  }
+
+  @override
   void dispose() {
     super.dispose();
   }
@@ -66,7 +72,6 @@ class _MyHomePageState extends State<MyHomePage> {
             children: <Widget>[
               Expanded(
                 child: MenuBar(
-
                   children: <Widget>[
                     SubmenuButton(
                       menuChildren: <Widget>[
@@ -78,7 +83,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             );
                             count++;
                           },
-                          child: const MenuAcceleratorLabel('&WidgetA'),
+                          child: const MenuAcceleratorLabel('Widget&A'),
                         ),
                         MenuItemButton(
                           onPressed: () {
@@ -88,7 +93,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             );
                             count++;
                           },
-                          child: const MenuAcceleratorLabel('&WidgetB'),
+                          child: const MenuAcceleratorLabel('Widget&B'),
                         ),
                       ],
                       child: const MenuAcceleratorLabel('&Menu1'),
@@ -103,7 +108,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             );
                             count++;
                           },
-                          child: const MenuAcceleratorLabel('&WidgetC'),
+                          child: const MenuAcceleratorLabel('Widget&C'),
                         ),
                         MenuItemButton(
                           onPressed: () {
@@ -113,7 +118,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             );
                             count++;
                           },
-                          child: const MenuAcceleratorLabel('&WidgetD'),
+                          child: const MenuAcceleratorLabel('Widget&D'),
                         ),
                       ],
                       child: const MenuAcceleratorLabel('&Menu2'),
@@ -129,6 +134,7 @@ class _MyHomePageState extends State<MyHomePage> {
               style: MdiStyleConfiguration(
                 borderRadius: 4,
                 gap: 1,
+                unfocusBlockerColor: Colors.transparent
               ),
             ),
           ),

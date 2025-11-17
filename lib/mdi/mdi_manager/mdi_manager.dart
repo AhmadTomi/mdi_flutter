@@ -33,9 +33,11 @@ class _MdiManagerState extends State<MdiManager> {
       style: widget.style ?? MdiStyleConfiguration(),
       child: FocusScope(
         onFocusChange: (value) {
+          print("MDI Manager $value");
+
           // WidgetsBinding.instance.addPostFrameCallback((_) {
-          widget.controller.hasFocus = value;
-          _rebuildWidget();
+          widget.controller.onFocusChange(value);
+          // _rebuildWidget();
           // });
         },
         child: Builder(builder: (context) => ColoredBox(
@@ -55,15 +57,16 @@ class _MdiManagerState extends State<MdiManager> {
                                 PointerDeviceKind.touch,
                                 PointerDeviceKind.trackpad,
                               },
-                              scrollbars: false
+                              scrollbars: false,
+                              physics: widget.controller.isMaximize? const NeverScrollableScrollPhysics(): const AlwaysScrollableScrollPhysics(),
                           ),
                           child: Stack(
                             children: [
                               SizedBox.expand(
                                 child: Scrollbar(
                                   trackVisibility: false,
-                                  thumbVisibility: true,
-                                  interactive: true,
+                                  thumbVisibility: !widget.controller.isMaximize,
+                                  interactive: !widget.controller.isMaximize,
                                   thickness: 4,
                                   controller: widget.controller.horizontalController,
                                   child: SingleChildScrollView(
@@ -95,8 +98,8 @@ class _MdiManagerState extends State<MdiManager> {
                                 child: Scrollbar(
                                   controller: widget.controller.verticalScrollBarController,
                                   trackVisibility: false,
-                                  thumbVisibility: true,
-                                  interactive: true,
+                                  thumbVisibility: !widget.controller.isMaximize,
+                                  interactive: !widget.controller.isMaximize,
                                   thickness: 4,
                                   child: SingleChildScrollView(
                                       controller: widget.controller.verticalScrollBarController,
@@ -137,6 +140,7 @@ class _MdiManagerState extends State<MdiManager> {
     if(widget.controller.screenSize!=newScreenSize){
       widget.controller.screenSize = newScreenSize;
       widget.controller.calculateUpdateScreenSize();
+      if(widget.controller.isMaximize)widget.controller.frontWindow?.updateParameter(x: 0, y: 0, currentHeight: newScreenSize.height, currentWidth: newScreenSize.width);
       WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
         widget.controller.tabMenuController.tabScrollCheck();
         _rebuildWidget();

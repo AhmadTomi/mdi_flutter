@@ -3,7 +3,6 @@ import 'package:flutter_app_mdi/mdi/resizable_window/resizable_window_controller
 
 import '../mdi_style.dart';
 
-
 class ResizableWindow extends StatefulWidget {
   final ResizeableWindowController controller;
 
@@ -33,6 +32,10 @@ class ResizableWindowState extends State<ResizableWindow> {
             return controller.child(controller);
           },
         ));
+
+    WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+      controller.requestFocus();
+    });
   }
 
   @override
@@ -80,7 +83,9 @@ class ResizableWindowState extends State<ResizableWindow> {
           node: controller.focusScopeNode,
           onFocusChange: (value) {
             _rebuildWidget();
-            controller.onFocusChange?.call(value);
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              controller.onFocusChange?.call(value);
+            });
           },
           child: GestureDetector(
             onTap: (controller.hasFocus)?null:controller.requestFocus,
@@ -102,36 +107,9 @@ class ResizableWindowState extends State<ResizableWindow> {
                   height: controller.currentHeight+gap,
                   child: Stack(
                     children: [
-                      // ScaleWidget(minWidth: ParameterWindow.defaultMinWidth*2, maxScale: LocalStorage.userPreferencesDB.widgetScaleLimit, child: widget.body(context)),
                       SizedBox.expand(
                         child: Column(
                           children: [
-                            /*controller.dragWidget(
-                              child: Container(
-                                color: Colors.blue.shade700,
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                                height: 30,
-                                alignment: Alignment.center,
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        controller.title,
-                                        style: const TextStyle(color: Colors.white),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    IconButton(
-                                      padding: EdgeInsets.zero,
-                                      iconSize: 16,
-                                      visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
-                                      onPressed: () => controller.close(), // Close button
-                                      icon: const Icon(Icons.close, color: Colors.white),
-                                    )
-                                  ],
-                                ),
-                              ),
-                            ),*/
                             Expanded(child: cachedChildContent),
                           ],
                         ),
@@ -142,7 +120,6 @@ class ResizableWindowState extends State<ResizableWindow> {
                             color: controller.hasFocus?Colors.transparent:mdiStyle.unfocusBlockerColor,
                             child: const SizedBox.expand()),
                       ),
-                      // widget.body(context),
                       Positioned(
                           right: 0,
                           top: 0,

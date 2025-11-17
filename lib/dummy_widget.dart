@@ -31,9 +31,7 @@ class _DummyWidgetState extends State<DummyWidget> {
       if(ctrl.hasFocus != isFocused){
         isFocused = ctrl.hasFocus;
         if(isFocused){
-          Future.delayed(const Duration(milliseconds: 10)).then((value) {
-            focusNode.requestFocus();
-          });
+          focusNode.requestFocus();
         }
       }
     }

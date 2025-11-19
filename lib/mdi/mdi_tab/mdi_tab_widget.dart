@@ -51,7 +51,7 @@ class _MdiTabWidgetState extends State<MdiTabWidget> {
           Row(
             children: [
               const SizedBox(
-                height: 32,
+                  height: 32,
                   width: 0.6,
                   child: VerticalDivider(
                     thickness: 0.6,
@@ -60,14 +60,14 @@ class _MdiTabWidgetState extends State<MdiTabWidget> {
                   enable: controller.showLeftButton,
                   onTap: (){controller.scrollLeft();},
                   borderRadius: 0,
-                  color: mdiStyle.focusedTabMenuColor,
+                  color: mdiStyle.focusedTabMenuColor.withValues(alpha: 0.4),
                   splashColor: mdiStyle.tabSplashColor,
                   padding: const EdgeInsets.symmetric(vertical: 4,horizontal: 2),
                   child:  Icon(Icons.keyboard_arrow_left_rounded,size: 15,color: mdiStyle.unfocusedTabTextColor,)),
               if(controller.showTabNavButton)_ButtonContainer(
                   enable: controller.showRightButton,
                   onTap: (){controller.scrollRight();},
-                  color: mdiStyle.focusedTabMenuColor,
+                  color: mdiStyle.focusedTabMenuColor.withValues(alpha: 0.4),
                   splashColor: mdiStyle.tabSplashColor,
                   borderRadius: 0,
                   padding: const EdgeInsets.symmetric(vertical: 4,horizontal: 2),
@@ -81,7 +81,7 @@ class _MdiTabWidgetState extends State<MdiTabWidget> {
               _ButtonContainer(
                   onTap: (){widget.mdiController.toggleMaximize();},
                   borderRadius: 0,
-                  color: mdiStyle.focusedTabMenuColor,
+                  color: mdiStyle.tabBackgroundColor.withValues(alpha: 0.4),
                   splashColor: mdiStyle.tabSplashColor,
                   padding: const EdgeInsets.symmetric(vertical: 4,horizontal: 2),
                   child:  Icon(widget.mdiController.isMaximize?Icons.grid_view_rounded:Icons.fit_screen_rounded,size: 15,opticalSize: 60,color: mdiStyle.unfocusedTabTextColor,)),
@@ -103,50 +103,51 @@ class _MdiTabWidgetState extends State<MdiTabWidget> {
     final list = controller.tabControllers;
     final mdiStyle = MdiStyleProvider.of(context);
     return ReorderableListView.builder(
-        itemBuilder: (context, index) {
-          final e = list[index];
-          return ReorderableDragStartListener(
-            key: ValueKey(index),
-            enabled: true,
-            index: index,
-            child: _ButtonContainer(
-                key: ValueKey(index),
-                color: e.hasFocus?mdiStyle.focusedTabMenuColor:mdiStyle.unfocusedTabMenuColor,
-                borderRadius: 2,
-                padding: const EdgeInsets.symmetric(horizontal: 6,vertical: 2),
-                width: e.hasFocus?null:controller.menuWidth,
-                splashColor: mdiStyle.tabSplashColor,
-                margin: EdgeInsets.zero,
-                onTap: () => e.requestFocus(),
-                child: Row(
-                  spacing: 6,
-                  children: [
-                    Flexible(
-                      flex: e.hasFocus?0:1,
-                      child: Text(
-                        e.title,
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                        style: TextStyle(fontSize: 11,fontWeight: e.hasFocus?FontWeight.w600:null,color: e.hasFocus?mdiStyle.focusedTabTextColor:mdiStyle.unfocusedTabTextColor),),
-                    ),
-                    _ButtonContainer(
-                      onTap:e.close,
-                      splashColor: Colors.red,
-                      color: Colors.red.withValues(alpha: 0.1),
-                      padding: const EdgeInsets.all(1),
-                      child: Icon(Icons.close_rounded,size: 10,color: e.hasFocus?mdiStyle.focusedTabTextColor:mdiStyle.unfocusedTabTextColor,),
-                    ),
-                  ],
-                )),
-          );
-        },
-        itemCount: list.length,
-        scrollDirection: Axis.horizontal,
-        buildDefaultDragHandles: false,
-        scrollController: controller.tabScrollController,
-        onReorder: (oldIndex, newIndex) {
-          controller.reorderTabs(oldIndex, newIndex);
-        },
+      itemBuilder: (context, index) {
+        final e = list[index];
+        return ReorderableDragStartListener(
+          key: ValueKey(index),
+          enabled: true,
+          index: index,
+          child: _ButtonContainer(
+              key: ValueKey(index),
+              color: e.hasFocus?mdiStyle.focusedTabMenuColor:mdiStyle.unfocusedTabMenuColor,
+              borderRadius: 2,
+              padding: const EdgeInsets.symmetric(horizontal: 6,vertical: 2),
+              width: e.hasFocus?null:mdiStyle.tabMenuMinWidth,
+              splashColor: mdiStyle.tabSplashColor,
+              margin: EdgeInsets.zero,
+              onTap: () => e.requestFocus(),
+              child: Row(
+                spacing: 6,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Flexible(
+                    flex: e.hasFocus?0:1,
+                    child: Text(
+                      e.title,
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                      style: TextStyle(fontSize: 11,fontWeight: e.hasFocus?FontWeight.w600:null,color: e.hasFocus?mdiStyle.focusedTabTextColor:mdiStyle.unfocusedTabTextColor),),
+                  ),
+                  _ButtonContainer(
+                    onTap:e.close,
+                    splashColor: Colors.red,
+                    color: Colors.red.withValues(alpha: 0.1),
+                    padding: const EdgeInsets.all(1),
+                    child: Icon(Icons.close_rounded,size: 10,color: e.hasFocus?mdiStyle.focusedTabTextColor:mdiStyle.unfocusedTabTextColor,),
+                  ),
+                ],
+              )),
+        );
+      },
+      itemCount: list.length,
+      scrollDirection: Axis.horizontal,
+      buildDefaultDragHandles: false,
+      scrollController: controller.tabScrollController,
+      onReorder: (oldIndex, newIndex) {
+        controller.reorderTabs(oldIndex, newIndex);
+      },
     );
 
   }

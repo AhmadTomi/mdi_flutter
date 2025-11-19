@@ -184,11 +184,17 @@ class MdiController extends ChangeNotifier{
     );
 
     newController.initAction(
-      onClose: (tag) => removeWindow(tag),
+      onClose: (tag) => removeWindow(tag,true),
       toggleMaximize: (action) {
         isMaximize = !isMaximize;
         action(screenSize);
+        calculateUpdateScreenSize();
         notifyListeners();
+        _debouncer.run(() {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            scrollTo(newController.x, newController.y,animate: !isMaximize);
+          });
+        });
       },
       onFocusChange: (hasFocus) {
         if (newController.isDisposed) return;
@@ -213,6 +219,10 @@ class MdiController extends ChangeNotifier{
         }
       },
     );
+
+    if(isMaximize) newController.toggleMaximize(screenSize, true);
+
+
     final newWidget = ResizableWindow(
       key: ValueKey(tag),
       controller: newController,
@@ -229,18 +239,22 @@ class MdiController extends ChangeNotifier{
     return newController;
   }
 
-  String removeWindow(String tag) {
+  Future<String> removeWindow(String tag,[bool? requestFocus]) async {
     if(tag.isEmpty) return '';
+    if(_controllers.length>=2 && (requestFocus==true)){
+      final controller = _controllers.values.elementAt((_controllers.length-2));
+      controller.requestFocus();
+    }
+    // await Future.delayed(Duration.zero);
     _removeController(tag);
     calculateUpdateScreenSize();
     notifyListeners();
-    requestLastWindowFocus();
     _onCloseCallback?.call(tag);
     return tag;
   }
 
-  String removeFrontWindow(){
-    return removeWindow(frontWindow?.tag??'');
+  Future<String> removeFrontWindow(){
+    return removeWindow(frontWindow?.tag??'',true);
   }
 
   void removeAllWindows(){
@@ -375,65 +389,104 @@ class MdiController extends ChangeNotifier{
   Duration _calculateDuration(ScrollController scrollController, double targetPosition){
     final distance = (targetPosition - scrollController.position.pixels).abs();
     const double speedMultiplier = 0.5;
-    int maxDuration = 500;
-    int minDuration = 300;
+    int maxDuration = 300;
+    int minDuration = 200;
     return Duration(milliseconds: (distance * speedMultiplier).toInt().clamp(minDuration, maxDuration));
   }
 
-  Future<void> scrollTo(double x, double y) async {
-    // Get position objects for easier access and clarity
+  Future<void> scrollTo(double x, double y, {bool animate = true}) async {
+
+    // Get position objects
     final posH = horizontalController.position;
     final posV = verticalController.position;
 
-    // --- Logic Improvement: Clearer Variable Names ---
     // Calculate the boundaries of the currently visible area
     final visibleLeft = posH.pixels;
-    final visibleTop = posV.pixels; // <-- BUG FIX: Was 'mixY'
+    final visibleTop = posV.pixels;
 
-    // Calculate the latest coordinate an item's top-left corner can be at
-    // and still be fully visible on screen.
-    final latestVisibleX = visibleLeft + screenSize.width - ParameterWindow.defaultMinWidth;
-    final latestVisibleY = visibleTop + screenSize.height - ParameterWindow.defaultMinHeight;
+    // Calculate the latest coordinate an item's top-left can be
+    // and still be fully visible.
+    final itemWidth = ParameterWindow.defaultMinWidth;
+    final itemHeight = ParameterWindow.defaultMinHeight;
+    final latestVisibleX = visibleLeft + screenSize.width;
+    final latestVisibleY = visibleTop + screenSize.height;
+
+    // --- REVISED LOGIC: Calculate correct targets ---
+
+    // By default, the target is the current position (i.e., don't scroll)
+    double targetX = visibleLeft;
+    double targetY = visibleTop;
+    bool needsHorizontalScroll = false;
+    bool needsVerticalScroll = false;
+
+    // Check horizontal
+    if (x < visibleLeft) {
+      // Item is off-screen to the LEFT. Scroll to align it with the left edge.
+      targetX = x;
+      needsHorizontalScroll = true;
+    } else if (x > latestVisibleX) {
+      // Item is off-screen to the RIGHT.
+      // Scroll just enough to show it on the right edge.
+      targetX = x - screenSize.width + itemWidth;
+      needsHorizontalScroll = true;
+    }
+
+    // Check vertical
+    if (y < visibleTop) {
+      // Item is off-screen ABOVE. Scroll to align it with the top edge.
+      targetY = y;
+      needsVerticalScroll = true;
+    } else if (y > latestVisibleY) {
+      // Item is off-screen BELOW.
+      // Scroll just enough to show it on the bottom edge.
+      targetY = y - screenSize.height + itemHeight;
+      needsVerticalScroll = true;
+    }
 
     // Futures to hold our animation tasks
     Future<void> horizontalScroll = Future.value();
     Future<void> verticalScroll = Future.value();
 
-    // Check if horizontal scrolling is needed
-    if (x < visibleLeft || x > latestVisibleX) {
-      // --- Logic Improvement: Clamping ---
-      // Clamp the target to be within the scroll controller's limits
-      final targetX = x.clamp(posH.minScrollExtent, posH.maxScrollExtent);
+    if (needsVerticalScroll) {
+      // Clamp the *calculated* target
+      final clampedTargetY = targetY.clamp(posV.minScrollExtent, posV.maxScrollExtent);
 
-      // --- Suggestion: Consistent Animation ---
-      // The 'x == 0' check for jumpTo() is jarring.
-      // Consider replacing this 'if/else' with just the animateTo() call.
-      horizontalScroll = horizontalController.animateTo(
-        targetX,
-        duration: _calculateDuration(horizontalController, targetX),
-        curve: Curves.easeInOut, // <-- SUGGESTION: Use a consistent curve
-      );
-    }
+      // --- FIX: Removed 'if (y == 0)' logic ---
+      // Always animate for a smooth and consistent experience.
 
-    // Check if vertical scrolling is needed
-    if (y < visibleTop || y > latestVisibleY) {
-      // Clamp the target to be within the scroll controller's limits
-      final targetY = y.clamp(posV.minScrollExtent, posV.maxScrollExtent);
-
-      if (y == 0) {
-        verticalController.jumpTo(0);
-      } else {
+      if(animate){
         verticalScroll = verticalController.animateTo(
-          targetY,
-          duration: _calculateDuration(verticalController, targetY),
-          curve: Curves.easeInOut, // <-- SUGGESTION: Use a consistent curve
+          clampedTargetY,
+          duration: _calculateDuration(verticalController, clampedTargetY),
+          curve: Curves.easeInOut,
         );
+      } else {
+        verticalController.jumpTo(clampedTargetY);
       }
+
+
     }
 
-    // --- BUG FIX: Parallel Animation ---
-    // Run both animations at the same time for a smooth diagonal scroll.
-    await Future.wait([horizontalScroll, verticalScroll]);
+    if (needsHorizontalScroll) {
+      // Clamp the *calculated* target
+
+      if(animate){
+        final clampedTargetX = targetX.clamp(posH.minScrollExtent, posH.maxScrollExtent);
+        horizontalScroll = horizontalController.animateTo(
+          clampedTargetX,
+          duration: _calculateDuration(horizontalController, clampedTargetX),
+          curve: Curves.easeInOut,
+        );
+      } else{
+        horizontalController.jumpTo(targetX);
+      }
+
+    }
+
+
+
+    // Run both animations at the same time
+    await Future.wait([verticalScroll,horizontalScroll]);
   }
 
   void toggleMaximize(){

@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'mdi/resizable_window/resizable_window.dart';
+import 'mdi/resizable_window/resizable_window_controller.dart';
 
 class DummyWidget extends StatefulWidget {
   const DummyWidget({super.key,});
@@ -15,28 +18,43 @@ class _DummyWidgetState extends State<DummyWidget> {
 
   bool isFocused = false;
 
+  ResizeableWindowController? controller;
+
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
+
   @override
   void dispose() {
     focusNode.dispose();
+    /*controller?.focusNotifier.removeListener(() {
+      focusChecking(false);
+    });*/
     super.dispose();
   }
+
+  void focusChecking(bool value){
+    if(value != isFocused){
+      isFocused = value;
+        if(isFocused){
+          focusNode.requestFocus();
+        }
+    }
+  }
+
+
 
 
   @override
   Widget build(BuildContext context) {
 
     final ctrl = ResizableWindowProvider.of(context);
-
     if(ctrl!=null){
-      if(ctrl.hasFocus != isFocused){
-        isFocused = ctrl.hasFocus;
-        if(isFocused){
-          focusNode.requestFocus();
-        }
-      }
+      focusChecking(ctrl.hasFocus);
     }
-
-
 
     return Column(
       children: [
@@ -101,5 +119,26 @@ class _DummyWidgetState extends State<DummyWidget> {
         ),
       ],
     );
+  }
+}
+
+class _Debouncer {
+  final int milliseconds;
+  Timer? _timer;
+
+  _Debouncer({required this.milliseconds});
+
+  void run(VoidCallback action) {
+    // If a timer is already active, cancel it
+    if (_timer != null) {
+      _timer!.cancel();
+    }
+
+    // Start a new timer
+    _timer = Timer(Duration(milliseconds: milliseconds), action);
+  }
+
+  void dispose() {
+    _timer?.cancel();
   }
 }

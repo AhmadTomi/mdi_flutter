@@ -134,6 +134,7 @@ class _MyHomePageState extends State<MyHomePage> {
               style: MdiStyleConfiguration(
                 borderRadius: 4,
                 gap: 1,
+                tabMenuMinWidth: 60,
                 unfocusBlockerColor: Colors.transparent
               ),
             ),

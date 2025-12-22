@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_app_mdi/mdi/resizable_window/resizable_window_controller.dart';
 
@@ -42,7 +41,9 @@ class ResizableWindowState extends State<ResizableWindow> {
 
   @override
   void dispose() {
-    controller.removeListener(_rebuildWidget);
+    if (!controller.isDisposed) {
+      controller.removeListener(_rebuildWidget);
+    }
     super.dispose();
   }
 
@@ -92,10 +93,11 @@ class ResizableWindowState extends State<ResizableWindow> {
             return isHandled?KeyEventResult.handled:KeyEventResult.ignored;
           },
           onFocusChange: (value) {
-
-            _rebuildWidget();
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              controller.onFocusChange?.call(value);
+              if (mounted) {
+                _rebuildWidget();
+                controller.onFocusChange?.call(value);
+              }
             });
           },
           child: GestureDetector(
@@ -142,14 +144,10 @@ class ResizableWindowState extends State<ResizableWindow> {
                               onHorizontalDragStart: (details) => controller.requestFocus(),
                               onHorizontalDragUpdate: (details) {
                                 controller.onHorizontalDragRight(details);
-                                _rebuildWidget();
-
                               },
                               onHorizontalDragEnd: (details) {
                                 controller.onHorizontalRightDragEnd(details);
-                                _rebuildWidget();
                                 controller.positionChangeAction();
-                                // widget.onWindowResized(controller.x,controller.y,controller.currentWidth,controller.currentHeight);
                               },
                               child: const MouseRegion(
                                 cursor: SystemMouseCursors.resizeLeftRight,
@@ -170,12 +168,9 @@ class ResizableWindowState extends State<ResizableWindow> {
                               onHorizontalDragStart: (details) => controller.requestFocus(),
                               onHorizontalDragUpdate: (details) {
                                 controller.onHorizontalDragLeft(details);
-                                _rebuildWidget();
                               },
                               onHorizontalDragEnd: (details) {
                                 controller.onHorizontalLeftDragEnd(details);
-                                _rebuildWidget();
-                                // widget.onWindowResized(controller.x,controller.y,controller.currentWidth,controller.currentHeight);
                               },
                               child: const MouseRegion(
                                 cursor: SystemMouseCursors.resizeLeftRight,
@@ -196,12 +191,9 @@ class ResizableWindowState extends State<ResizableWindow> {
                               onVerticalDragStart: (details) => controller.requestFocus(),
                               onVerticalDragUpdate: (details) {
                                 controller.onHorizontalDragTop(details);
-                                _rebuildWidget();
                               },
                               onVerticalDragEnd: (details) {
                                 controller.onVerticalDragTopEnd(details);
-                                _rebuildWidget();
-                                // widget.onWindowResized(controller.x,controller.y,controller.currentWidth,controller.currentHeight);
                               },
                               child: const MouseRegion(
                                 cursor: SystemMouseCursors.resizeUpDown,
@@ -222,13 +214,10 @@ class ResizableWindowState extends State<ResizableWindow> {
                               onVerticalDragStart: (details) => controller.requestFocus(),
                               onVerticalDragUpdate: (details) {
                                 controller.onHorizontalDragBottom(details);
-                                _rebuildWidget();
                               },
                               onVerticalDragEnd: (details) {
                                 controller.onVerticalDragBottomEnd(details);
-                                _rebuildWidget();
                                 controller.positionChangeAction();
-                                // widget.onWindowResized(controller.x,controller.y,controller.currentWidth,controller.currentHeight);
                               },
                               child: const MouseRegion(
                                 cursor: SystemMouseCursors.resizeUpDown,
@@ -248,11 +237,9 @@ class ResizableWindowState extends State<ResizableWindow> {
                               onPanStart: (details) => controller.requestFocus(),
                               onPanUpdate: (details) {
                                 controller.onHorizontalDragBottomRight(details);
-                                _rebuildWidget();
                               },
                               onPanEnd: (details) {
                                 controller.positionChangeAction();
-                                // widget.onWindowResized(controller.x,controller.y,controller.currentWidth,controller.currentHeight);
                               },
                               child: const MouseRegion(
                                 cursor: SystemMouseCursors.resizeUpLeftDownRight,
@@ -272,11 +259,9 @@ class ResizableWindowState extends State<ResizableWindow> {
                               onPanStart: (details) => controller.requestFocus(),
                               onPanUpdate: (details) {
                                 controller.onHorizontalDragBottomLeft(details);
-                                _rebuildWidget();
                               },
                               onPanEnd: (details) {
                                 controller.positionChangeAction();
-                                // widget.onWindowResized(controller.x,controller.y,controller.currentWidth,controller.currentHeight);
                               },
                               child: const MouseRegion(
                                 cursor: SystemMouseCursors.resizeUpRightDownLeft,
@@ -296,11 +281,9 @@ class ResizableWindowState extends State<ResizableWindow> {
                               onPanStart: (details) => controller.requestFocus(),
                               onPanUpdate: (details) {
                                 controller.onHorizontalDragTopRight(details);
-                                _rebuildWidget();
                               },
                               onPanEnd: (details) {
                                 controller.positionChangeAction();
-                                // widget.onWindowResized(controller.x,controller.y,controller.currentWidth,controller.currentHeight);
                               },
                               child: const MouseRegion(
                                 cursor: SystemMouseCursors.resizeUpRightDownLeft,
@@ -320,7 +303,6 @@ class ResizableWindowState extends State<ResizableWindow> {
                               onPanStart: (details) => controller.requestFocus(),
                               onPanUpdate: (details) {
                                 controller.onHorizontalDragTopLeft(details);
-                                _rebuildWidget();
                               },
                               onPanEnd: (details) {
                                 // widget.onWindowResized(controller.x,controller.y,controller.currentWidth,controller.currentHeight);

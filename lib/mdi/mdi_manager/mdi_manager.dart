@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_app_mdi/mdi/mdi_manager/mdi_controller.dart';
 import 'package:flutter_app_mdi/mdi/mdi_tab/mdi_tab_widget.dart';
+import 'package:flutter_app_mdi/mdi/resizable_window/resizable_window.dart';
 
 import '../mdi_style.dart';
 
@@ -33,12 +34,8 @@ class _MdiManagerState extends State<MdiManager> {
       style: widget.style ?? MdiStyleConfiguration(),
       child: FocusScope(
         onFocusChange: (value) {
-          print("MDI Manager $value");
-
-          // WidgetsBinding.instance.addPostFrameCallback((_) {
+          // No print needed here for production, but logic remains
           widget.controller.onFocusChange(value);
-          // _rebuildWidget();
-          // });
         },
         onKeyEvent: (node, event) {
           bool isHandled = widget.controller.onKeyEvent(event);
@@ -85,9 +82,12 @@ class _MdiManagerState extends State<MdiManager> {
                                         size: widget.controller.mdiSize,
                                         child: RepaintBoundary(
                                           child: Stack(
-                                            children: [
-                                              ...widget.controller.windowWidgets,
-                                            ],
+                                            children: widget.controller.windows.map((c) {
+                                                return ResizableWindow(
+                                                  key: ValueKey(c.tag),
+                                                  controller: c
+                                                );
+                                            }).toList(),
                                           ),
                                         ),
                                       ),

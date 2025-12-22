@@ -1,24 +1,20 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_app_mdi/mdi/parameter_window.dart';
-import 'package:flutter_app_mdi/mdi/resizable_window/resizable_window.dart';
 import 'package:flutter_app_mdi/mdi/resizable_window/resizable_window_controller.dart';
 
 import '../mdi_tab/mdi_tab_controller.dart';
 
-class MdiController extends ChangeNotifier{
+class MdiController extends ChangeNotifier {
+  // Uses LinkedHashMap to preserve insertion order (Z-order: last is top)
   final Map<String, ResizeableWindowController> _controllers = {};
 
-  final List<Widget> _cachedWindowWidgets = [];
-  List<Widget> get windowWidgets => _cachedWindowWidgets;
+  List<ResizeableWindowController> get windows => _controllers.values.toList();
 
-  final _windowChangeStreamController =
-  StreamController<String>.broadcast();
-
+  final _windowChangeStreamController = StreamController<String>.broadcast();
   Stream<String> get onWindowChange => _windowChangeStreamController.stream;
 
   Size screenSize = Size.zero;
@@ -35,25 +31,31 @@ class MdiController extends ChangeNotifier{
 
   final _debouncer = _Debouncer(milliseconds: 100);
 
-  ResizeableWindowController? get frontWindow => (_controllers.isNotEmpty) ?_controllers.values.last : null;
+  ResizeableWindowController? get frontWindow =>
+      (_controllers.isNotEmpty) ? _controllers.values.last : null;
+
   ResizeableWindowController? getWindow(String tag) => _controllers[tag];
   bool isWindowExist(String tag) => _controllers.containsKey(tag);
-  bool isFrontWindow(String tag)=> frontWindow?.tag==tag;
-  Map<String, ParameterWindow> get parameterWindowsMap => _controllers.map((key, value) => MapEntry(key, value.parameterWindow));
-  List<ParameterWindow> get parameterWindows => _controllers.values.map((e) => e.parameterWindow).toList();
+  bool isFrontWindow(String tag) => frontWindow?.tag == tag;
+  
+  Map<String, ParameterWindow> get parameterWindowsMap =>
+      _controllers.map((key, value) => MapEntry(key, value.parameterWindow));
+      
+  List<ParameterWindow> get parameterWindows =>
+      _controllers.values.map((e) => e.parameterWindow).toList();
 
   void Function(String tag)? _onCloseCallback;
 
-
-
-  void init([void Function(String tag)? onClose]){
+  void init([void Function(String tag)? onClose]) {
     verticalController.addListener(() {
-      if (verticalScrollBarController.hasClients && !verticalScrollBarController.position.isScrollingNotifier.value) {
+      if (verticalScrollBarController.hasClients &&
+          !verticalScrollBarController.position.isScrollingNotifier.value) {
         verticalScrollBarController.jumpTo(verticalController.position.pixels);
       }
     });
     verticalScrollBarController.addListener(() {
-      if (verticalController.hasClients && !verticalController.position.isScrollingNotifier.value) {
+      if (verticalController.hasClients &&
+          !verticalController.position.isScrollingNotifier.value) {
         verticalController.jumpTo(verticalScrollBarController.position.pixels);
       }
     });
@@ -68,7 +70,6 @@ class MdiController extends ChangeNotifier{
 
   @override
   void dispose() {
-
     horizontalController.dispose();
     verticalController.dispose();
     verticalScrollBarController.dispose();
@@ -83,99 +84,87 @@ class MdiController extends ChangeNotifier{
     super.dispose();
   }
 
-  bool onKeyEvent(KeyEvent event){
-    if(event is KeyDownEvent ){
-      if(HardwareKeyboard.instance.isControlPressed){
-        if(HardwareKeyboard.instance.isAltPressed){
-          if(HardwareKeyboard.instance.isShiftPressed){
+  bool onKeyEvent(KeyEvent event) {
+    if (event is KeyDownEvent) {
+      if (HardwareKeyboard.instance.isControlPressed) {
+        if (HardwareKeyboard.instance.isAltPressed) {
+          if (HardwareKeyboard.instance.isShiftPressed) {
             // CTRL + ALT + SHIFT + Arrow for move window Position
             final window = frontWindow;
-            if(window!=null){
-              if(event.logicalKey == LogicalKeyboardKey.arrowRight){
+            if (window != null) {
+              if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
                 window.moveRight();
                 return true;
               }
-              if(event.logicalKey == LogicalKeyboardKey.arrowLeft){
+              if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
                 window.moveLeft();
                 return true;
               }
-              if(event.logicalKey == LogicalKeyboardKey.arrowUp){
+              if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
                 window.moveUp();
                 return true;
               }
-              if(event.logicalKey == LogicalKeyboardKey.arrowDown){
+              if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
                 window.moveDown();
                 return true;
               }
-
-              /*var param = _windowParameters[windowKey]?.clone;
-                  if(param!=null){
-                    scrollTo(param.x, param.y);
-                  }*/
             }
           }
 
           // CTRL + ALT + Arrow for move focus
-
-          if(event.logicalKey == LogicalKeyboardKey.arrowRight || event.logicalKey == LogicalKeyboardKey.arrowUp){
+          if (event.logicalKey == LogicalKeyboardKey.arrowRight ||
+              event.logicalKey == LogicalKeyboardKey.arrowUp) {
             moveFocusNext();
             return true;
-          } else
-          if(event.logicalKey == LogicalKeyboardKey.arrowLeft || event.logicalKey == LogicalKeyboardKey.arrowDown){
+          } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft ||
+              event.logicalKey == LogicalKeyboardKey.arrowDown) {
             moveFocusPrevious();
             return true;
           }
-
         }
       }
     }
     return false;
   }
 
-  void _addController(String tag,ResizeableWindowController controller,Widget widget){
-    _controllers[tag]=controller;
+  void _addController(String tag, ResizeableWindowController controller) {
+    _controllers[tag] = controller;
     tabMenuController.addTab(tag, controller);
-    _cachedWindowWidgets.add(widget);
     if (!_windowChangeStreamController.isClosed) {
       _windowChangeStreamController.add(controller.tag);
     }
   }
-  void _removeController(String tag){
+
+  void _removeController(String tag) {
     final controller = _controllers[tag];
     if (controller != null) {
       _controllers.remove(tag);
       tabMenuController.removeTab(tag);
-      _cachedWindowWidgets.removeWhere((w) => w.key == ValueKey(tag));
       if (!_windowChangeStreamController.isClosed) {
         _windowChangeStreamController.add(controller.tag);
       }
       controller.dispose();
-
     }
-
   }
 
-
-  // Future<List<ResizeableWindowController>>
-
-  ResizeableWindowController addWindow ({
+  ResizeableWindowController addWindow({
     required ParameterWindow parameter,
     required Widget Function(ResizeableWindowController controller) child,
-    bool notify=true
-  })
-  {
+    bool notify = true,
+  }) {
     final tag = parameter.tag;
-    if(_controllers.containsKey(tag)) {
+    if (_controllers.containsKey(tag)) {
       throw Exception('Tag $tag already exists');
     }
 
-    if(parameter.x==-1 || parameter.y==-1){
-      //Centering Widget
-      final double centerX = max(0,(screenSize.width-parameter.currentWidth)/2)-(Random().nextInt(60)-30);
-      final double centerY = max(0,(screenSize.height-parameter.currentHeight)/2)-(Random().nextInt(60)-30);
-      parameter.updateParameter(posX: centerX,posY: centerY);
+    if (parameter.x == -1 || parameter.y == -1) {
+      // Centering Widget
+      final double centerX = max(0, (screenSize.width - parameter.currentWidth) / 2) -
+          (Random().nextInt(60) - 30);
+      final double centerY = max(0, (screenSize.height - parameter.currentHeight) / 2) -
+          (Random().nextInt(60) - 30);
+      parameter.updateParameter(posX: centerX, posY: centerY);
     }
-
 
     final newController = ResizeableWindowController(
       parameter: parameter,
@@ -183,7 +172,7 @@ class MdiController extends ChangeNotifier{
     );
 
     newController.initAction(
-      onClose: (tag) => removeWindow(tag,true),
+      onClose: (tag) => removeWindow(tag, true),
       toggleMaximize: (action) {
         isMaximize = !isMaximize;
         action(screenSize);
@@ -191,22 +180,22 @@ class MdiController extends ChangeNotifier{
         notifyListeners();
         _debouncer.run(() {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            scrollTo(newController.x, newController.y,animate: !isMaximize);
+            scrollTo(newController.x, newController.y, animate: !isMaximize);
           });
         });
       },
       onFocusChange: (hasFocus) {
         if (newController.isDisposed) return;
-        _onWindowChangeFocus(hasFocus,newController);
+        _onWindowChangeFocus(hasFocus, newController);
       },
       onPositionChange: (position, size) {
         _debouncer.run(() {
           final needUpdate = calculateUpdateScreenSize();
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if(!isMaximize)scrollTo(newController.xBound, newController.yBound);
+            if (!isMaximize) scrollTo(newController.xBound, newController.yBound);
           });
 
-          if(needUpdate) notifyListeners();
+          if (needUpdate) notifyListeners();
           if (!_windowChangeStreamController.isClosed) {
             _windowChangeStreamController.add(newController.tag);
           }
@@ -219,32 +208,23 @@ class MdiController extends ChangeNotifier{
       },
     );
 
-    if(isMaximize) newController.toggleMaximize(screenSize, true);
+    if (isMaximize) newController.toggleMaximize(screenSize, true);
 
+    _addController(tag, newController);
 
-    final newWidget = ResizableWindow(
-      key: ValueKey(tag),
-      controller: newController,
-    );
-    _addController(tag, newController, newWidget);
-
-    // if(notify)notifyListeners();
-    Future.delayed(Duration(milliseconds: 100)).then((value) {
-      if(notify)notifyListeners();
+    Future.delayed(const Duration(milliseconds: 100)).then((value) {
+      if (notify) notifyListeners();
     });
-
-
 
     return newController;
   }
 
-  Future<String> removeWindow(String tag,[bool? requestFocus]) async {
-    if(tag.isEmpty) return '';
-    if(_controllers.length>=2 && (requestFocus==true)){
-      final controller = _controllers.values.elementAt((_controllers.length-2));
+  Future<String> removeWindow(String tag, [bool? requestFocus]) async {
+    if (tag.isEmpty) return '';
+    if (_controllers.length >= 2 && (requestFocus == true)) {
+      final controller = _controllers.values.elementAt((_controllers.length - 2));
       controller.requestFocus();
     }
-    // await Future.delayed(Duration.zero);
     _removeController(tag);
     calculateUpdateScreenSize();
     notifyListeners();
@@ -252,11 +232,11 @@ class MdiController extends ChangeNotifier{
     return tag;
   }
 
-  Future<String> removeFrontWindow(){
-    return removeWindow(frontWindow?.tag??'',true);
+  Future<String> removeFrontWindow() {
+    return removeWindow(frontWindow?.tag ?? '', true);
   }
 
-  void removeAllWindows(){
+  void removeAllWindows() {
     final tags = _controllers.keys.toList();
     for (var tag in tags) {
       _removeController(tag);
@@ -266,8 +246,8 @@ class MdiController extends ChangeNotifier{
   }
 
   bool calculateUpdateScreenSize() {
-    var valuesX = _controllers.values.map((c) => c.x+c.currentWidth);
-    var valuesY = _controllers.values.map((c) => c.y+c.currentHeight);
+    var valuesX = _controllers.values.map((c) => c.x + c.currentWidth);
+    var valuesY = _controllers.values.map((c) => c.y + c.currentHeight);
 
     double maxX = valuesX.fold(0.0, max);
     double maxY = valuesY.fold(0.0, max);
@@ -276,7 +256,7 @@ class MdiController extends ChangeNotifier{
     final double newY = maxY.clamp(screenSize.height, double.infinity);
 
     final newMdiSize = Size(newX, newY);
-    if(newMdiSize != mdiSize) {
+    if (newMdiSize != mdiSize) {
       mdiSize = newMdiSize;
       return true;
     }
@@ -284,48 +264,34 @@ class MdiController extends ChangeNotifier{
   }
 
   void _onWindowChangeFocus(bool hasFocus, ResizeableWindowController controller) {
-
-    /*if (kDebugMode) {
-      String icon(bool b) => b ? "✅" : "⛔";
-      print(
-          "MDI Focus: ${icon(this.hasFocus)}, "
-              "Win [${controller.tag}] Focus: ${icon(hasFocus)}, "
-              "MDI Max: ${icon(isMaximize)}, "
-              "Is Front: ${icon(isFrontWindow(controller.tag))}");
-    }*/
-
     if (!hasFocus) {
       return;
     }
 
+    // Only update if the focused window is not already at the front
     final bool isChangingFrontWindow = frontWindow != controller;
 
     if (isChangingFrontWindow) {
       final oldFront = frontWindow;
+      // Move to end (top)
       _controllers.remove(controller.tag);
       _controllers[controller.tag] = controller;
-      try {
-        final widget = _cachedWindowWidgets
-            .firstWhere((w) => w.key == ValueKey(controller.tag));
-        _cachedWindowWidgets.remove(widget);
-        _cachedWindowWidgets.add(widget);
-      } catch (e) {
-        if (kDebugMode) {
-          print(
-              "Error: Could not find widget for controller ${controller.tag} in cache.");
-        }
-      }
 
       if (isMaximize) {
         controller.toggleMaximize(screenSize, true);
-
       } else {
         scrollTo(controller.x, controller.y);
       }
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        oldFront?.toggleMaximize(screenSize, false);
-        notifyListeners();
-      });
+      
+      // Notify listeners to update the Z-order in the UI
+      notifyListeners();
+
+      // Handle maximization state for the old front window if needed
+      if (oldFront != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+            oldFront.toggleMaximize(screenSize, false);
+        });
+      }
     } else {
       if (this.hasFocus) {
         controller.toggleMaximize(screenSize, isMaximize);
@@ -333,68 +299,62 @@ class MdiController extends ChangeNotifier{
     }
   }
 
-  void bringToFront(String tag,bool needMaximize, bool hasFocus) {
-
-
-
-    if(_controllers.keys.last == tag) return;
-
+  void bringToFront(String tag, bool needMaximize, bool hasFocus) {
+    if (_controllers.keys.last == tag) return;
     if (!_controllers.containsKey(tag)) return;
 
-
-
     final controller = _controllers.remove(tag);
-    _controllers[tag] = controller!;
+    if (controller == null) return;
+    _controllers[tag] = controller;
 
     controller.toggleMaximize(screenSize, needMaximize);
 
-    final widget =
-    _cachedWindowWidgets.firstWhere((w) => w.key == ValueKey(tag));
-    _cachedWindowWidgets.remove(widget);
-    _cachedWindowWidgets.add(widget);
-
-
-    if(!isMaximize)scrollTo(controller.x, controller.y);
-
-    // notifyListeners();
+    if (!isMaximize) scrollTo(controller.x, controller.y);
+    
+    // Explicitly notify listeners to refresh Z-order
+    notifyListeners();
+    
+    if (hasFocus) {
+        controller.requestFocus();
+    }
   }
 
-  void requestLastWindowFocus(){
-    if(_controllers.isEmpty) return;
+  void requestLastWindowFocus() {
+    if (_controllers.isEmpty) return;
     final controller = _controllers.values.last;
     controller.requestFocus();
   }
 
-  void moveFocusNext(){
-    if(_controllers.length<2) return;
+  void moveFocusNext() {
+    if (_controllers.length < 2) return;
     final listTab = tabMenuController.tabControllers;
-    final currentIndex = listTab.indexWhere((element) => element.tag==frontWindow?.tag);
-    if(currentIndex == -1) return;
-    int newIndex = currentIndex+1;
-    if(newIndex>=listTab.length) newIndex=0;
+    final currentIndex = listTab.indexWhere((element) => element.tag == frontWindow?.tag);
+    if (currentIndex == -1) return;
+    int newIndex = currentIndex + 1;
+    if (newIndex >= listTab.length) newIndex = 0;
     listTab[newIndex].requestFocus();
   }
 
-  void moveFocusPrevious(){
-    if(_controllers.length<2) return;
+  void moveFocusPrevious() {
+    if (_controllers.length < 2) return;
     final listTab = tabMenuController.tabControllers;
-    final currentIndex = listTab.indexWhere((element) => element.tag==frontWindow?.tag);
-    if(currentIndex == -1) return;
-    int newIndex = currentIndex-1;
-    if(newIndex<0) newIndex=listTab.length-1;
+    final currentIndex = listTab.indexWhere((element) => element.tag == frontWindow?.tag);
+    if (currentIndex == -1) return;
+    int newIndex = currentIndex - 1;
+    if (newIndex < 0) newIndex = listTab.length - 1;
     listTab[newIndex].requestFocus();
   }
 
-  Duration _calculateDuration(ScrollController scrollController, double targetPosition){
+  Duration _calculateDuration(ScrollController scrollController, double targetPosition) {
     final distance = (targetPosition - scrollController.position.pixels).abs();
     const double speedMultiplier = 0.5;
     int maxDuration = 300;
     int minDuration = 200;
-    return Duration(milliseconds: (distance * speedMultiplier).toInt().clamp(minDuration, maxDuration));
+    return Duration(
+        milliseconds: (distance * speedMultiplier).toInt().clamp(minDuration, maxDuration));
   }
 
   Future<void> scrollTo(double x, double y, {bool animate = true}) async {
-
     // Get position objects
     final posH = horizontalController.position;
     final posV = verticalController.position;
@@ -450,10 +410,7 @@ class MdiController extends ChangeNotifier{
       // Clamp the *calculated* target
       final clampedTargetY = targetY.clamp(posV.minScrollExtent, posV.maxScrollExtent);
 
-      // --- FIX: Removed 'if (y == 0)' logic ---
-      // Always animate for a smooth and consistent experience.
-
-      if(animate){
+      if (animate) {
         verticalScroll = verticalController.animateTo(
           clampedTargetY,
           duration: _calculateDuration(verticalController, clampedTargetY),
@@ -462,40 +419,34 @@ class MdiController extends ChangeNotifier{
       } else {
         verticalController.jumpTo(clampedTargetY);
       }
-
-
     }
 
     if (needsHorizontalScroll) {
       // Clamp the *calculated* target
-
-      if(animate){
+      if (animate) {
         final clampedTargetX = targetX.clamp(posH.minScrollExtent, posH.maxScrollExtent);
         horizontalScroll = horizontalController.animateTo(
           clampedTargetX,
           duration: _calculateDuration(horizontalController, clampedTargetX),
           curve: Curves.easeInOut,
         );
-      } else{
+      } else {
         horizontalController.jumpTo(targetX);
       }
-
     }
 
-
-
     // Run both animations at the same time
-    await Future.wait([verticalScroll,horizontalScroll]);
+    await Future.wait([verticalScroll, horizontalScroll]);
   }
 
-  void toggleMaximize(){
+  void toggleMaximize() {
     isMaximize = !isMaximize;
-    frontWindow?.toggleMaximize(screenSize,isMaximize);
+    frontWindow?.toggleMaximize(screenSize, isMaximize);
     notifyListeners();
   }
 
-  void onFocusChange(bool value){
-    if(hasFocus != value){
+  void onFocusChange(bool value) {
+    if (hasFocus != value) {
       hasFocus = value;
     }
   }

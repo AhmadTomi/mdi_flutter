@@ -5,7 +5,6 @@ import 'package:flutter_app_mdi/mdi/parameter_window.dart';
 
 import 'mdi/mdi_manager/mdi_controller.dart';
 import 'mdi/mdi_manager/mdi_manager.dart';
-import 'mdi/resizable_window/resizable_window.dart';
 
 void main() {
   runApp(const MyApp());

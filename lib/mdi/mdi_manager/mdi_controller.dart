@@ -60,8 +60,6 @@ class MdiController extends ChangeNotifier{
 
     _onCloseCallback = onClose;
 
-    HardwareKeyboard.instance.addHandler(onKeyEvent);
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       tabMenuController.init();
       requestLastWindowFocus();
@@ -70,8 +68,6 @@ class MdiController extends ChangeNotifier{
 
   @override
   void dispose() {
-
-    HardwareKeyboard.instance.removeHandler(onKeyEvent);
 
     horizontalController.dispose();
     verticalController.dispose();
@@ -158,6 +154,9 @@ class MdiController extends ChangeNotifier{
     }
 
   }
+
+
+  // Future<List<ResizeableWindowController>>
 
   ResizeableWindowController addWindow ({
     required ParameterWindow parameter,

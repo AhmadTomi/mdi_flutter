@@ -348,4 +348,6 @@ class ResizeableWindowController extends ChangeNotifier{
     );
   }
 
+  bool Function(KeyEvent event)? onKeyEvent;
+
 }

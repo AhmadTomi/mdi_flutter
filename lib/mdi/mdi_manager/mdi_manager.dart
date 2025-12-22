@@ -40,6 +40,10 @@ class _MdiManagerState extends State<MdiManager> {
           // _rebuildWidget();
           // });
         },
+        onKeyEvent: (node, event) {
+          bool isHandled = widget.controller.onKeyEvent(event);
+          return isHandled?KeyEventResult.handled:KeyEventResult.ignored;
+        },
         child: Builder(builder: (context) => ColoredBox(
           color: MdiStyleProvider.of(context).mdiBackgroundColor,
           child: Column(

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'mdi/resizable_window/resizable_window.dart';
 import 'mdi/resizable_window/resizable_window_controller.dart';
@@ -45,7 +46,21 @@ class _DummyWidgetState extends State<DummyWidget> {
     }
   }
 
-
+  bool  _onKeyEvent(KeyEvent){
+    if(!isFocused) return false;
+    if(KeyEvent is !KeyDownEvent) return false;
+    if(KeyEvent.logicalKey == LogicalKeyboardKey.f2){
+      if(mounted) {
+        setState(() {
+        print("HIT F2");
+      });
+      }
+    }
+    if(KeyEvent.logicalKey == LogicalKeyboardKey.f4){
+      print("HIT F4");
+    }
+    return false;
+  }
 
 
   @override
@@ -55,6 +70,8 @@ class _DummyWidgetState extends State<DummyWidget> {
     if(ctrl!=null){
       focusChecking(ctrl.hasFocus);
     }
+
+    ctrl?.onKeyEvent =_onKeyEvent;
 
     return Column(
       children: [

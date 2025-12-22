@@ -123,6 +123,31 @@ class _MyHomePageState extends State<MyHomePage> {
                       ],
                       child: const MenuAcceleratorLabel('&Menu2'),
                     ),
+                    SubmenuButton(
+                      menuChildren: <Widget>[
+                        MenuItemButton(
+                          onPressed: () {
+                            controller.addWindow(
+                              parameter: ParameterWindow(title: 'Template A',id: count.toString()),
+                              child: (controller) => DummyWidget(),
+                            );
+                            count++;
+                          },
+                          child: const MenuAcceleratorLabel('Template &A'),
+                        ),
+                        MenuItemButton(
+                          onPressed: () {
+                            controller.addWindow(
+                              parameter: ParameterWindow(title: 'Widget D',id: count.toString()),
+                              child: (controller) => DummyWidget(),
+                            );
+                            count++;
+                          },
+                          child: const MenuAcceleratorLabel('Widget&D'),
+                        ),
+                      ],
+                      child: const MenuAcceleratorLabel('&Template'),
+                    ),
                   ],
                 ),
               ),

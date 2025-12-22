@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_app_mdi/mdi/resizable_window/resizable_window_controller.dart';
 
 import '../mdi_style.dart';
@@ -82,7 +83,16 @@ class ResizableWindowState extends State<ResizableWindow> {
         padding: EdgeInsets.all(controller.isMaximized?0:gap),
         child: FocusScope(
           node: controller.focusScopeNode,
+          onKeyEvent: (node, event) {
+            if (event.synthesized || event is! KeyDownEvent) {
+              return KeyEventResult.ignored;
+            }
+
+            final isHandled = controller.onKeyEvent?.call(event)??false;
+            return isHandled?KeyEventResult.handled:KeyEventResult.ignored;
+          },
           onFocusChange: (value) {
+
             _rebuildWidget();
             WidgetsBinding.instance.addPostFrameCallback((_) {
               controller.onFocusChange?.call(value);
